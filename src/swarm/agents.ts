@@ -54,6 +54,8 @@ export interface AgentCtx {
 // ---------- payload budgets ----------
 
 const REVIEW_MAX_PASSAGES = 90;
+/** Passages per concurrent extraction call — see the note in reviewsAgent. */
+const REVIEW_CHUNK = 30;
 const FINDING_MAX_PASSAGES = 60;
 const SOCIAL_MAX_BLOCKS = 50;
 const CONTEXT_MAX_PASSAGES = 30;
@@ -280,16 +282,52 @@ export async function reviewsAgent(ctx: AgentCtx): Promise<void> {
       return;
     }
 
-    status(ctx, id, "extracting", `Parsing ${items.length} review passages`);
-    const parsed = await completeJSON<ParsedReview[]>(
-      REVIEW_EXTRACT_PROMPT(ctx.name, ctx.city, toBlocks(items), todayISO()),
-      16000,
-      ctx.signal,
+    // Extraction is chunked and run concurrently on purpose. A single 90-passage
+    // call at 16k max_tokens measured slower than the swarm's 75s global abort
+    // on a live run (Evvia: started at +14s, still unfinished at cutoff, so the
+    // agent returned zero reviews). Three ~30-passage calls at 6k tokens finish
+    // in roughly the time of the slowest one, and a chunk that fails or gets
+    // aborted only costs its own slice instead of the whole harvest.
+    const chunks: Tagged[][] = [];
+    for (let i = 0; i < items.length; i += REVIEW_CHUNK) {
+      chunks.push(items.slice(i, i + REVIEW_CHUNK));
+    }
+    status(
+      ctx,
+      id,
+      "extracting",
+      `Parsing ${items.length} passages in ${chunks.length} batches`,
     );
 
-    const reviews = asArray<ParsedReview>(parsed).filter(
-      (r) => r && typeof r.text === "string" && r.text.trim().length > 0,
+    const settled = await Promise.allSettled(
+      chunks.map((chunk) =>
+        completeJSON<ParsedReview[]>(
+          REVIEW_EXTRACT_PROMPT(ctx.name, ctx.city, toBlocks(chunk), todayISO()),
+          6000,
+          ctx.signal,
+        ),
+      ),
     );
+
+    const seen = new Set<string>();
+    const reviews: ParsedReview[] = [];
+    for (const outcome of settled) {
+      if (outcome.status !== "fulfilled") continue;
+      for (const r of asArray<ParsedReview>(outcome.value)) {
+        if (!r || typeof r.text !== "string" || !r.text.trim()) continue;
+        const key = r.text.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 60);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        reviews.push(r);
+      }
+    }
+
+    // Every chunk failing is a real failure, not an empty restaurant.
+    if (!reviews.length && settled.every((s) => s.status === "rejected")) {
+      throw settled[0].status === "rejected"
+        ? settled[0].reason
+        : new Error("Review extraction failed.");
+    }
 
     ctx.dispatch({ type: "reviews/collected", reviews });
     ctx.dispatch({

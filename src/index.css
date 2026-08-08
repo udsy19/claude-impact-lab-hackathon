@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme {
+  /* Fraunces is optional; the rest of the stack carries it offline. */
+  --font-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino,
+    Georgia, "Times New Roman", serif;
+  --font-sans: ui-sans-serif, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Brief (light) */
+  --color-paper: #faf8f4;
+  --color-ink: #1c1a17;
+  --color-muted: #6b6560;
+  --color-rule: #ddd6cc;
+  --color-accent: #9c3b23;
+  --color-accent-soft: #f3e6e0;
+
+  /* Engine (dark) */
+  --color-void: #0b0d0f;
+  --color-panel: #12151a;
+  --color-panel2: #171b21;
+  --color-edge: #232a33;
+  --color-dim: #7c8899;
+  --color-live: #d2603f;
+  --color-ok: #3fb98a;
+  --color-warn: #d99a3f;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Engine view paints its own dark ground over the body. 100vh (not 100%) so a
+   short swarm still fills the screen — otherwise the paper background shows
+   through under the cards. */
+.engine-root {
+  background: #0b0d0f;
+  color: #e6ecf2;
+  min-height: 100vh;
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(210, 96, 63, 0.35); }
+  70% { box-shadow: 0 0 0 10px rgba(210, 96, 63, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(210, 96, 63, 0); }
+}
+.agent-live {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+.scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: #232a33; border-radius: 3px; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- Print: the brief alone, one clean page ---- */
+@media print {
+  @page { margin: 13mm; }
+
+  html, body, #root { height: auto; background: #fff; }
+  body { font-size: 10pt; }
+
+  .no-print { display: none !important; }
+  .print-open { display: block !important; }
+
+  .print-page {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    background: #fff !important;
+  }
+
+  /* Charts are SVG and print fine, but must not straddle a page break. */
+  .print-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .recharts-wrapper,
+  .recharts-surface {
+    overflow: visible !important;
+  }
+
+  a[href]::after { content: ""; }
+}

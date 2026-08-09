@@ -13,7 +13,7 @@ every surface below was exercised in a browser, not just compiled.
 |---|---|---|
 | ✅ | Location grant → or picker that never dead-ends | picker verified on denial |
 | ✅ | 4-question flow, multi-select vibe/budget, chat bubbles | verified |
-| ⚠️ | 3 suggestions in **< 4s** | **8s** — see below |
+| ⚠️ | 3 suggestions in **< 4s** | **7s** on Supabase — see below |
 | ✅ | Time-of-day + distance filtering | ranker hard-filters both |
 | ✅ | `none of these` re-rolls excluding shown | verified |
 | ✅ | Sessions logged to `decision_logs` | verified |
@@ -25,6 +25,7 @@ every surface below was exercised in a browser, not just compiled.
 | ⚠️ | Generated OG **image** | not done — see limits |
 | ✅ | Claim captures email into `owner_claims` | verified |
 | ⚠️ | Pre-index ≥50 SF with cost log | script + 65-row seed written, **not run** |
+| ✅ | Supabase live: schema, RLS, seed, logging | 114 rows; claims/logs write-only |
 | ✅ | PWA manifest + icons, one-handed at 390px | verified |
 | ⚠️ | `?demo=1` full offline demo | old dossier fixture only |
 | ✅ | README + HANDOFF written | done |
@@ -41,13 +42,12 @@ the James Beard and Michelin badges plus the health chip on the next search.
 
 ## Three items short of the bar, stated plainly
 
-1. **8s to first suggestion, target was <4s.** Candidate discovery from cache is
+1. **7s to first suggestion, target was <4s.** Candidate discovery from cache is
    fast; the remainder is the single Claude ranking call. Fixes in `HANDOFF.md`
    (stream the hero as it parses, or move the ranker to Haiku).
-2. **No Supabase.** The MCP OAuth token expired mid-session after you chose
-   "create a new project", so no project exists. Schema, client and migration
-   are written; only the localStorage path has been run. This also blocks the
-   pre-index run, which needs somewhere to write.
+2. **Pre-index not run at scale.** Supabase is now live (project `tablestakes`,
+   114 restaurants, decision logging verified), so the blocker is gone — the
+   bulk run just hasn't happened.
 3. **No generated OG image.** Meta tags are set at runtime, which does not help
    crawlers that don't execute JS. Needs a small SSR/edge layer for `/r/*`.
 

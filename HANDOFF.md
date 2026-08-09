@@ -5,14 +5,21 @@ every surface in the build prompt exists and has been exercised in a browser.
 
 ## Do these first
 
-1. **Connect Supabase.** The blocker was mechanical, not technical: the MCP
-   OAuth token expired mid-session, so no project was ever created. Everything
-   is ready — apply `supabase/migrations/0001_init.sql`, set `VITE_SUPABASE_URL`
-   and `VITE_SUPABASE_ANON_KEY`, and `src/db/index.ts` switches backends with no
-   other change. The Supabase store is fully implemented but has **never been
-   run against a live database**, so expect to shake out one or two PostgREST
-   details (the `price_tier` null `.or()` filter and the embedded
-   `shareCardBySlug` join are the two most likely).
+1. **Supabase is connected.** Project `tablestakes` (ref `blgnwtxzvwzepvdziczx`,
+   us-west-1), migration applied, 114 restaurants seeded, decision logging
+   verified writing. The DB password is **not** in the repo — it was generated
+   during setup and lives at `/tmp/ts_dbpass.txt` on the build machine; rotate it
+   in the dashboard and store it somewhere durable.
+
+   Note: creating it required pausing **DSource-AI**, because the free tier caps
+   *active* projects at 2 and both `erys` and `DSource-AI` were running. Deleting
+   the already-paused Outfit-Selector would have freed nothing. Unpause
+   DSource-AI from the dashboard when you need it (that will re-block new
+   project creation).
+
+   Two PostgREST details already shaken out: the `price_tier` null `.or()`
+   filter works, and `shareCardBySlug`'s embedded join is still **untested
+   against Postgres** — it's the most likely remaining rough edge.
 
 2. **Run the pre-index.** `npx tsx scripts/preindex.ts seed/sf.json --limit 5`
    first to watch the cost log, then the full 65. It is resumable and aborts any
@@ -28,7 +35,7 @@ every surface in the build prompt exists and has been exercised in a browser.
 
 ## Known issues
 
-- **Time to first suggestion is ~8s, not the <4s target.** Breakdown: candidate
+- **Time to first suggestion is ~7s against Supabase, not the <4s target.** Breakdown: candidate
   discovery from the local cache is fast; the remainder is the single Claude
   ranking call. Options, cheapest first: stream the hero card as soon as the
   first suggestion parses out of the ranking response; drop the ranker to

@@ -6,7 +6,7 @@
  * whole product depends on distance being honest — a seeded restaurant at the
  * wrong corner would produce a confidently wrong "6-min walk".
  */
-import { db } from "../db";
+import { db, usingSupabase } from "../db";
 import { slugify } from "../lib/geo";
 import type { Vibe } from "../db/types";
 
@@ -79,7 +79,8 @@ const SF: Seed[] = [
   { name: "Tacolicious", hood: "Marina", lat: 37.8000, lng: -122.4363, vibes: ["munch"], tier: 2, cuisine: ["mexican", "tacos"] },
 ];
 
-const FLAG = "ts.seeded.sf.v1";
+/** Per-backend: switching from localStorage to Supabase must re-seed. */
+const FLAG = `ts.seeded.sf.v1.${usingSupabase ? "supabase" : "local"}`;
 
 export async function seedLocalIfNeeded(): Promise<void> {
   if (localStorage.getItem(FLAG)) return;

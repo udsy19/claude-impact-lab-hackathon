@@ -42,13 +42,19 @@ VITE_SUPABASE_URL=            # optional — falls back to localStorage
 VITE_SUPABASE_ANON_KEY=
 ```
 
-**Supabase is optional.** With no database configured the app runs entirely on a
-localStorage-backed store that implements the same `Store` interface, seeded with
-55 real SF restaurants at verified coordinates. Everything works — decisions,
-dossiers, share links, claims — it just doesn't sync across devices.
+**Supabase is live** (project `tablestakes`, us-west-1) and is what the app uses
+when the two env vars are set. Without them it falls back to a localStorage store
+implementing the same `Store` interface — everything still works, it just doesn't
+sync across devices. `src/db/index.ts` picks the backend automatically.
 
-To use Postgres: apply `supabase/migrations/0001_init.sql` and set the two env
-vars. `src/db/index.ts` picks the backend automatically.
+To provision from scratch: `supabase projects create`, then apply
+`supabase/migrations/0001_init.sql`.
+
+**One RLS subtlety worth knowing:** `decision_logs` and `owner_claims` have INSERT
+policies but no SELECT policy, so anon can write and never read them. That means
+an insert must not request `return=representation` — `logDecision` generates its
+own UUID client-side rather than reading the id back. Adding a SELECT policy to
+"fix" a 42501 there would make every user's decision history world-readable.
 
 | Command | |
 |---|---|
@@ -162,11 +168,8 @@ real:
   tags are set at runtime, but SPA runtime tags don't help real crawlers
   (iMessage, Slack) which don't run JS. A tiny SSR or edge function for `/r/*`
   is the honest fix and is the top item in `HANDOFF.md`.
-- **Supabase was never connected** during this build (the MCP OAuth token
-  expired mid-session), so the schema is written and the client is implemented
-  but only the localStorage path has been exercised end to end.
-- **`preindex.ts` has not been run at scale** for the same reason — it needs a
-  database to write to. It is dry-run safe.
+- **`preindex.ts` has not been run at scale.** It is wired to a live database
+  now and is dry-run safe, but the bulk run hasn't happened.
 - Health adapters cover SF and NYC only; other cities omit the section entirely
   rather than showing anything.
 - React Native / Expo port is explicitly out of scope; this is an installable

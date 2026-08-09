@@ -333,17 +333,20 @@ export function createSupabaseStore(): Store | null {
       };
     },
 
+    /**
+     * The id is generated client-side on purpose. Returning it from the insert
+     * would require `.select()`, which needs a SELECT policy on decision_logs —
+     * and these rows should stay write-only to anon, like owner_claims. This
+     * keeps the table unreadable while markChosen can still find its row.
+     */
     async logDecision(row) {
-      const { data, error } = await client
-        .from("decision_logs")
-        .insert(row)
-        .select("id")
-        .single();
-      if (error || !data) {
+      const id = crypto.randomUUID();
+      const { error } = await client.from("decision_logs").insert({ ...row, id });
+      if (error) {
         warn("logDecision", error);
         return ""; // telemetry is never worth breaking a session over
       }
-      return str((data as Row).id);
+      return id;
     },
 
     async markChosen(logId, restaurantId) {

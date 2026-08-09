@@ -2,19 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!--
-      Fraunces is a progressive enhancement only. If the network is down (the
-      ?demo=1 offline path), these links fail silently and the local serif
-      stack in index.css takes over — the brief still looks right.
-    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#9c3b23" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- Static fallback unfurl. Share pages overwrite these at runtime; real
+         crawlers don't run JS, so these carry the generic case. -->
+    <title>Tablestakes — where should you eat?</title>
+    <meta name="description" content="Where should I eat, right now, near me — with receipts." />
+    <meta property="og:title" content="Tablestakes" />
+    <meta property="og:description" content="Where should I eat, right now, near me — with receipts." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap"
       rel="stylesheet"
     />
-    <title>Tablestakes — Operator Brief</title>
   </head>
   <body>
     <div id="root"></div>

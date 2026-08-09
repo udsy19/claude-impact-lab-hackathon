@@ -105,6 +105,38 @@ export default function App() {
     [logId, go],
   );
 
+  /**
+   * Candidates are snapshotted at search time, so a dossier built during this
+   * session left the card still reading "run the check". Re-read the cache on
+   * the way back — it is a local lookup, not a network call.
+   */
+  const backToResults = useCallback(() => {
+    go({ name: suggestions.length ? "results" : "decide" });
+    if (!candidates.length) return;
+    void (async () => {
+      const map = await db.dossiersFor(candidates.map((c) => c.restaurant.id));
+      setCandidates((prev) =>
+        prev.map((c) => {
+          const d = map[c.restaurant.id];
+          if (!d || !d.verdict) return c;
+          const health = d.health;
+          const dv = d.diner_view as { order_this?: string[] } | null;
+          return {
+            ...c,
+            hasDossier: d.status !== "failed",
+            verdict: d.verdict,
+            badges: (d.badges as { label: string }[]) ?? [],
+            healthGrade: health?.status === "matched" ? health.grade : null,
+            healthScore: health?.status === "matched" ? health.score : null,
+            healthCritical:
+              health?.status === "matched" && health.critical_violations.length > 0,
+            topDish: dv?.order_this?.[0] ?? c.topDish,
+          };
+        }),
+      );
+    })();
+  }, [go, suggestions.length, candidates]);
+
   const reroll = useCallback(() => {
     if (!constraints || !place) return;
     const skip = [...excluded, ...suggestions.map((s) => s.restaurant_id)];
@@ -148,7 +180,7 @@ export default function App() {
         ) : route.name === "dossier" ? (
           <motion.div key="dossier" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <TopBar
-              onBack={() => go({ name: suggestions.length ? "results" : "decide" })}
+              onBack={backToResults}
               label="back"
             />
             <DossierView restaurant={route.restaurant} />

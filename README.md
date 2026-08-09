@@ -2,105 +2,28 @@
 
 # Tablestakes
 
-### Every restaurant has a consultant working for free — their customers.
-### This is the tool that reads the report.
+### where should I eat, right now, near me?
 
-**Type a restaurant name. Seven research agents go to work on the open web in parallel.
-Ninety seconds later you have a one-page Operator Brief telling you the single
-highest-leverage thing to fix this week — and every claim on it is a verbatim
-customer quote with the source it came from.**
+**Four playful questions. Three real answers. Every one backed by receipts —
+verbatim review excerpts, press, and health-inspection records, each with the
+source it came from.**
 
-`React 19` · `TypeScript` · `Vite` · `Tailwind v4` · `Claude Sonnet 4.6` · `Tavily` · `Recharts` · `Framer Motion`
-
-*No backend. No database. No auth. No configuration.*
+`React 19` · `TypeScript` · `Vite PWA` · `Tailwind v4` · `Claude Sonnet 4.6` · `Tavily` · `Supabase` · `DataSF` · `NYC DOHMH`
 
 </div>
 
 ---
 
-## The problem nobody solved
+## The two surfaces
 
-Restaurant owners read their reviews one at a time, on their phone, at eleven at
-night, emotionally. A bad one ruins the evening. A good one is forgotten by
-Tuesday.
+**The Decision Flow** — you don't know what you want. Four tappable questions
+(`what's the move?` · `damage?` · `how far?` · `hunger check`) and you get one
+hero suggestion plus two runner-ups. No typing required; a free-text box accepts
+"omakase" or "hookah" and maps it to real tags.
 
-Nobody reads a year of them as a **single operational dataset**. Nobody
-cross-checks what the customers said against what the critics said. And nobody
-tells the owner which of their five problems to fix *first*.
-
-The existing category — "reputation management" — sells a **score that goes
-down**. It tells an operator their rating fell to 4.1 and invites them to feel
-bad about it. It is a dashboard for a feeling.
-
-**Tablestakes does the opposite.** It never discusses reputation. It reads
-reviews as telemetry and returns a decision:
-
-> *"Put a third server and a dedicated host on Friday dinner, starting this
-> Friday, and hold it for six weeks."*
-
-A rating is a symptom. A schedule is a lever. This tool only ships levers.
-
----
-
-## What it actually produced
-
-These are unedited excerpts from **live runs against real restaurants**, not
-mockups and not the demo fixture.
-
-### Evvia Estiatorio, Palo Alto — 7/7 agents, 83 reviews, 9 sources
-
-> **THE ONE FIX** — On Monday, pull the tiropita off the line and rebuild the
-> filling to a feta-dominant spec — minimum 70% feta to any neutral cheese —
-> taste it against the spanakopita (which passed) and the gigantes (which was
-> the value leader) before returning it to the menu. Simultaneously, audit
-> dolmathes portion count: move from three to five pieces or reduce the $7 price
-> to match the actual serving size.
-
-Named dish. Named spec. Named price. Named portion count. **No other
-restaurant's owner could mistake that for their own brief** — which is the
-actual bar, and it is written into the prompt as a self-check.
-
-### Tamarine, Palo Alto — 38 evidence items, 14 sources
-
-> **Pattern 2** — Papaya salad and garlic noodles are viral on TikTok/Instagram,
-> but papaya salad has documented execution issues.
-
-That collision — *social demand meeting operational reality* — is the single
-highest-leverage finding this product can produce, and the model found it
-unprompted on live data.
-
-It also wrote, about a thinner-evidenced pattern:
-
-> *"single-source but structurally credible at 130-seat volume"*
-
-It flagged its own epistemic footing. That is the behaviour you want from
-something an operator is going to act on.
-
----
-
-## Watch the machine think
-
-The demo is two screens and the contrast between them is the point.
-
-```
-   ╔═══════════════════════════════╗          ╔═══════════════════════════════╗
-   ║   THE GLASS ENGINE  (dark)    ║   ───►   ║   THE OPERATOR BRIEF (light)  ║
-   ╠═══════════════════════════════╣          ╠═══════════════════════════════╣
-   ║  seven agent cards, live      ║          ║  the one fix, dominant        ║
-   ║  status lines cycling         ║          ║  3–5 patterns, ranked         ║
-   ║  source logos landing         ║          ║  rating dip + timeline        ║
-   ║  evidence counter climbing    ║          ║  voices · second opinion      ║
-   ║  synthesis streaming, token   ║          ║  provenance row of real logos ║
-   ║  by token                     ║          ║  print → one clean page       ║
-   ╚═══════════════════════════════╝          ╚═══════════════════════════════╝
-        you watch it work                          you act on what it found
-```
-
-**The engine is not a progress bar.** Agents finish out of order because they
-genuinely take different amounts of time. When one fails it goes amber and the
-swarm carries on. That texture is real concurrency, not choreography — and the
-one time an agent *did* fail on stage-equivalent conditions, it taught us
-something (see the war story below).
+**The Dossier** — tap any suggestion and get the verification card: verdict,
+what to order, what to skip, how to get in, and know-before-you-go including the
+actual health inspection. This is the moat.
 
 ---
 
@@ -108,185 +31,143 @@ something (see the war story below).
 
 ```bash
 npm install
-cp .env.example .env.local     # add both keys
+cp .env.example .env.local     # add your keys
 npm run dev
 ```
 
 ```env
 VITE_TAVILY_API_KEY=tvly-...
 VITE_ANTHROPIC_API_KEY=sk-ant-...
+VITE_SUPABASE_URL=            # optional — falls back to localStorage
+VITE_SUPABASE_ANON_KEY=
 ```
 
-Both APIs are called **straight from the browser** — Tavily permits
-cross-origin requests (verified by preflight), and Anthropic is called with
-`anthropic-dangerous-direct-browser-access: true`. The planned Express proxy
-turned out to be unnecessary and was never built.
+**Supabase is optional.** With no database configured the app runs entirely on a
+localStorage-backed store that implements the same `Store` interface, seeded with
+55 real SF restaurants at verified coordinates. Everything works — decisions,
+dossiers, share links, claims — it just doesn't sync across devices.
+
+To use Postgres: apply `supabase/migrations/0001_init.sql` and set the two env
+vars. `src/db/index.ts` picks the backend automatically.
 
 | Command | |
 |---|---|
 | `npm run dev` | dev server |
-| `npm run typecheck` | **use this, not bare `tsc --noEmit`** — see the trap below |
-| `npm run build` | production build |
-
-**Three ways in:**
-
-| Path | What happens |
-|---|---|
-| Type a name → **Research** | full live swarm, ~90s |
-| **Or paste reviews directly** | Claude parses any messy paste and briefs on it alone |
-| `?demo=1` or press **`D`** | replays a captured swarm **offline**, zero network |
+| `npm run typecheck` | **use this, not bare `tsc --noEmit`** (see gotchas) |
+| `npx tsx scripts/preindex.ts seed/sf.json --limit 20` | pre-index a city |
 
 ---
 
 ## Architecture
 
 ```
-  name + city
-       │
-       ▼
-   runSwarm ────► 7 agents, Promise.allSettled, one 75s global abort
-       │          reviews · press · pulse · social · menu · inspector · context
-       │
-       │          each agent:  Tavily search ──► passage harvest ──► Claude extract
-       │                       (concurrent probes)  (dedupe, cap)   (chunked calls)
-       ▼
-   reducer ─────► a single SwarmState
-       │          ↑ this same event stream is what the Engine renders,
-       │            so the architecture and the demo are the same object
-       ▼
-  synthesis ────► streamed Claude call ──► Analysis JSON ──► Operator Brief
+  four questions + location
+            │
+            ▼
+   findCandidates ──► 1. our restaurants table   (instant)
+            │         2. Overpass / OSM          (only if thin)
+            │         3. Tavily + Claude names   (only if still thin)
+            ▼
+      rank ──► one Claude call: hard-filters time-of-day, distance, price;
+            │  dossier-backed candidates outrank unknowns
+            ▼
+   hero + 2 runner-ups ──► tap ──► getDossier()
+                                      │
+                    fresh ────────────┤ serve instantly
+                    stale ────────────┤ serve now, refresh behind the user
+                    none  ────────────┘ live glass engine (the only cold path)
 ```
 
-An "agent" here is deliberately unglamorous: **an async function with a name, a
-Tavily strategy, and an extraction prompt**, dispatching lifecycle events into a
-reducer. No framework, no orchestration layer, no magic. The honesty of that
-design is why the live view is trustworthy — you are watching the actual control
-flow.
-
-| Path | Contents |
+| Path | What lives there |
 |---|---|
-| `src/swarm/` | `reducer.ts` (pure), `agents.ts` (the seven), `runSwarm.ts` (fan-out + abort) |
-| `src/api/` | `tavily.ts` (search, harvest, dedupe), `claude.ts` (incl. SSE streaming) |
-| `src/prompts.ts` | every prompt in one file, so they are easy to iterate on |
-| `src/lib/stats.ts` | pure statistics — no React, hand-verified against a fixture |
-| `src/views/` | `Engine.tsx` (dark, live) · `Brief.tsx` (light, the artifact) |
-| `src/fixtures/` | `sample_reviews.ts` (planted-pattern oracle) · `sample_swarm.ts` (offline replay) |
+| `src/decision/` | constraint types, candidate discovery, the ranking prompt |
+| `src/dossier/service.ts` | cache-first orchestration and TTL policy |
+| `src/health/` | SF + NYC Socrata adapters and the confidence matcher |
+| `src/db/` | `Store` interface, Supabase and localStorage backends |
+| `src/swarm/` | the research agents (ported from the dossier engine) |
+| `scripts/preindex.ts` | the moat: bulk-index a city ahead of demand |
 
-### The seven
+### The cost model, which is the architecture
 
-| Agent | Job | On failure |
-|---|---|---|
-| **REVIEWS** | find the Yelp slug, mine menu-item pages, extract verbatim customer voice | amber, partial results kept |
-| **PRESS** | critics and guides — Eater, Infatuation, Michelin, James Beard | empty array is a valid answer |
-| **PULSE** | discontinuities: chef changes, ownership, closures, renovations | dated findings prioritised |
-| **SOCIAL** | TikTok / Instagram / X captions and articles about virality | **honest `quiet`, never invented buzz** |
-| **MENU** | prices and signature dishes, to cross-check "overpriced" claims | tier 2, first to be cut |
-| **INSPECTOR** | health inspection records | reports a **visible null result** |
-| **CONTEXT** | citable industry statistics | falls back to two captured stats |
+A fresh research run costs roughly **$0.50**. A cached dossier read costs
+**nothing**. So the cache is exhausted before anything else runs: relax price,
+then widen the radius, and only then touch Overpass or Tavily. Pre-indexing is
+what makes the product economical — every row written by `preindex.ts` is a user
+who never waits and never costs a swarm.
+
+TTLs: 7 days for popular restaurants (≥3 views/week), 30 days otherwise. Health
+has an independent 30-day clock, so a new inspection surfaces without paying for
+a whole re-run.
 
 ---
 
-## Why you can trust the output
+## Health inspections — the differentiator
 
-This is the part that matters. An operator is going to change a schedule
-because of this page, so the evidence has to be real. These are enforced in
-code and in prompt, not merely encouraged:
+SF (DataSF LIVES) and NYC (DOHMH) open data, matched by name + coordinates with
+a confidence scorer that **refuses rather than guesses**. Showing the wrong
+restaurant's violations is the worst error this product could make, so distance
+is a gate and not a tiebreak: past 250m, no name match can clear the threshold.
 
-| Guarantee | How |
+Verified live against 9 cases:
+
+| Case | Result |
 |---|---|
-| **Quotes are verbatim** | excerpts must be substrings of source text; each carries its domain. Ctrl-F them against Yelp. |
-| **No decorative logos** | the provenance row lists **only domains that actually produced findings** — no Michelin badge on a taqueria Michelin never wrote about |
-| **Charts hide rather than lie** | rating distribution needs ≥10 rated reviews; the timeline needs ≥3 buckets. Below that they render nothing and say why |
-| **No invented buzz** | SOCIAL returns `quiet` + "no significant social footprint found" when that is the truth |
-| **Nulls are visible** | INSPECTOR reports "no public inspection data found" rather than quietly succeeding |
-| **Failure is survivable** | one dead agent never kills the swarm; it goes amber and the brief ships without it |
-| **Anti-generic self-check** | the synthesis prompt ends: *"could a different restaurant's owner mistake this brief for their own? If yes, regenerate with more specificity."* |
+| Tartine Bakery, Zuni Cafe, La Taqueria, House of Prime Rib, Swan Oyster | matched, scores 87–96 |
+| Katz's Delicatessen (NYC) | matched, score 56 — rats, filth flies, contaminated food |
+| Peter Luger (Brooklyn) | matched, grade A |
+| **"Kitchen" at SF coords** | **refused** — generic name can't clear the bar |
+| **"Tartine Bakery" at NYC coords** | **refused** — right name, wrong city |
 
-**Verified, not asserted.** The fixture oracle was re-derived by an independent
-parser that shares no code with the app: 46 reviews, 7 quarters, average
-**4.41 → 3.11** — a 1.30-star dip landing exactly on the planted April 2026 chef
-change. All 62 fixture excerpts were confirmed verbatim substrings, zero
-failures.
+Two things worth knowing: **the SF dataset is frozen at 2019-11-28** (that's the
+source, not a bug — NYC is current to this week), and the *most recent* SF
+inspection is usually an unscored re-visit, so the adapter reports the most
+recent inspection that actually carries a score.
 
 ---
 
-## Field notes — what the web actually does
+## Honesty rules
 
-Every one of these was discovered by probing the live APIs, and several
-invalidated the original plan. They are the difference between a demo that works
-and one that works *on stage*.
+Enforced in code and prompt, because a recommendation people act on has to be
+real:
 
-- **Tavily `/extract` returns 403 on yelp.com.** The original design was built
-  on extracting Yelp pages. It does not work. Do not rebuild it.
-- **But Tavily `/search` with `include_raw_content: true` returns cached Yelp
-  content.** That is the way in.
-- **`yelp.com/biz/<slug>` is a decoy** — ~10,000 characters yielding *two* lines
-  of prose. All nav, photo captions and dish thumbnails.
-- **`yelp.com/menu/<slug>/item/<dish>` is the goldmine** — 40–70 verbatim
-  customer passages per page. Landing those pages is the REVIEWS agent's entire
-  job, which is why the passage pool is **priority-sorted before the payload
-  cap** — otherwise site chrome starves the good pages.
-- **`include_domains` is a soft filter, not a hard one.** Off-list domains come
-  back anyway, and they are often the best material (`foodnut.com`,
-  `hungryonion.org`), so nothing is ever discarded on domain.
-- **Tavily occasionally returns malformed URLs.** `hostOf()` never throws.
-- **Measured harvest:** Evvia 219 distinct passages (197 Yelp reviews); Tamarine
-  114 passages, 48 first-person.
-
-### The war story
-
-The first live run *looked* like a success. Six agents green. But **REVIEWS was
-amber with zero reviews** — it had started its extraction at +14s and a single
-90-passage call at 16k `max_tokens` had not returned when the 75-second global
-abort fired. The most important agent in the swarm had quietly produced nothing.
-
-The fix was to split extraction into **concurrent ~30-passage calls at 6k
-tokens**. Wall clock becomes the slowest chunk instead of the sum, and a failed
-chunk costs only its own slice. Re-run: 7/7 settled, 83 reviews.
-
-There was a second one just like it. The paste path rendered a brief whose
-header proudly read *"46 pieces of evidence"* while the body said **"no reviews
-exist in this dataset."** `synthesize` was reading state synchronously before
-React had flushed the dispatch, so the prompt got an empty list. Replies were
-unaffected — they run after an `await` — and that asymmetry is what made the bug
-visible. Evidence is now passed explicitly rather than depending on render
-timing.
-
-**Both bugs looked like success at a glance.** Neither would have been caught by
-reading the code.
-
-### One trap worth stealing
-
-`tsconfig.json` here is a **solution file** (`"files": []` + project
-references), so a bare `npx tsc --noEmit` type-checks *nothing* and cheerfully
-exits `0`. Two "zero errors" readings during this build were therefore
-meaningless. Always `npm run typecheck`.
+- **No composite star rating exists anywhere.** Verdicts are editorial sentences
+  with attributed excerpts. This is both the brand and the Yelp posture.
+- **Yelp content** appears only as short attributed excerpts (≤40 words) with
+  source links, never blended into a score alongside other sources.
+- **Badges only from explicit findings** — an award is never inferred.
+- **Health renders only on a confident match**, and the diner view states the
+  reality plainly rather than burying it.
+- **Charts hide rather than lie** when the data is too thin.
+- A failing research agent goes amber; the swarm continues.
 
 ---
 
-## Known limits, stated plainly
+## Gotchas worth stealing
 
-Because a tool that hides its edges does not deserve to be trusted at its centre.
+- **`tsc --noEmit` is a no-op here.** `tsconfig.json` is a solution file
+  (`"files": []` + references), so it type-checks nothing and exits 0. Always
+  `npm run typecheck`.
+- **Tavily `/extract` 403s on yelp.com**, but `/search` with
+  `include_raw_content` returns cached Yelp content. `yelp.com/biz/<slug>` is
+  chrome; `yelp.com/menu/<slug>/item/<dish>` carries 40–70 verbatim reviews.
+- **Don't regex restaurant names out of search titles.** That produced "Best
+  Cheap Eats San" and "Francisco" as candidates. Entity extraction is the
+  model's job.
+- **Socrata `within_circle` silently drops rows with no coordinates**, so the
+  health query ORs it with a name `LIKE` clause.
 
-- **The star charts hide on live Yelp runs.** Yelp's cached review text carries
-  no star values, so the ≥10-rated-reviews threshold trips and the distribution
-  and timeline render nothing. Mention heat still draws. Pasted reviews and
-  `?demo=1` carry stars, so all three charts appear there. This is the honesty
-  rule working as designed, not a rendering bug.
-- **URL ingest is not built.** Google and Yelp block cross-origin fetches; the
-  field is present and labelled *coming soon* rather than faked.
-- **Agent cards show every domain Tavily returns**, including soft-filter noise.
-  The Brief's provenance row is stricter — findings-only.
-- **Social reads captions, not video.** TikTok and Instagram post text is
-  indexed; the video content is not. The agent says `quiet` when that is all
-  there is.
+## Known limits
 
----
-
-<div align="center">
-
-**Built for the Claude Impact Lab hackathon.**
-
-*A rating is a symptom. A schedule is a lever. Ship levers.*
-
-</div>
+- **OG images are not generated yet.** `renderCardImage` exists and the meta
+  tags are set at runtime, but SPA runtime tags don't help real crawlers
+  (iMessage, Slack) which don't run JS. A tiny SSR or edge function for `/r/*`
+  is the honest fix and is the top item in `HANDOFF.md`.
+- **Supabase was never connected** during this build (the MCP OAuth token
+  expired mid-session), so the schema is written and the client is implemented
+  but only the localStorage path has been exercised end to end.
+- **`preindex.ts` has not been run at scale** for the same reason — it needs a
+  database to write to. It is dry-run safe.
+- Health adapters cover SF and NYC only; other cities omit the section entirely
+  rather than showing anything.
+- React Native / Expo port is explicitly out of scope; this is an installable
+  PWA.

@@ -111,6 +111,49 @@ export default function App() {
     }, doneAt);
   }, [reveal]);
 
+  /**
+   * Stream the synthesis over the evidence in state.
+   *
+   * `reviewsOverride` exists because `stateRef` only catches up after React
+   * flushes. runSwarm awaits long enough that stateRef is current, but the
+   * paste path dispatches and synthesizes in the same tick — without the
+   * override the prompt received zero reviews and the model dutifully wrote
+   * "no reviews exist in this dataset" onto a brief whose header said 46.
+   * Pass the evidence explicitly rather than depending on render timing.
+   */
+  const synthesize = useCallback(
+    async (
+      restaurant: string,
+      signal?: AbortSignal,
+      reviewsOverride?: ParsedReview[],
+    ) => {
+      const base = stateRef.current;
+      const state = reviewsOverride?.length
+        ? { ...base, reviews: reviewsOverride }
+        : base;
+
+      dispatch({ type: "synthesis/start" });
+      try {
+        const raw = await completeStream(
+          SYNTHESIZE_PROMPT(synthesisInput(state)),
+          (t) => dispatch({ type: "synthesis/token", text: t }),
+          8000,
+          signal,
+        );
+        const analysis = parseJSON<Analysis>(raw);
+        dispatch({ type: "synthesis/done", analysis });
+        void draftReplies(state.reviews, restaurant);
+        reveal();
+      } catch (e) {
+        dispatch({
+          type: "synthesis/failed",
+          error: e instanceof Error ? e.message : "Synthesis failed.",
+        });
+      }
+    },
+    [draftReplies, reveal],
+  );
+
   const runLive = useCallback(async () => {
     const restaurant = name.trim();
     if (!restaurant) return;
@@ -128,25 +171,52 @@ export default function App() {
       tier2: true,
     });
 
-    dispatch({ type: "synthesis/start" });
-    try {
-      const raw = await completeStream(
-        SYNTHESIZE_PROMPT(synthesisInput(stateRef.current)),
-        (t) => dispatch({ type: "synthesis/token", text: t }),
-        8000,
-        abort.current.signal,
-      );
-      const analysis = parseJSON<Analysis>(raw);
-      dispatch({ type: "synthesis/done", analysis });
-      void draftReplies(stateRef.current.reviews, restaurant);
-      reveal();
-    } catch (e) {
+    await synthesize(restaurant, abort.current.signal);
+  }, [name, city, synthesize]);
+
+  /**
+   * Paste is both the thin-data top-up and the guaranteed demo path. Mid-swarm
+   * it just merges into the evidence pool; from the start screen there is no
+   * swarm to merge into, so it drives a brief on its own.
+   */
+  const onPasted = useCallback(
+    (reviews: ParsedReview[]) => {
+      dispatch({ type: "reviews/collected", reviews });
+      if (stateRef.current.phase !== "start") return;
+
+      const restaurant = name.trim() || "Your restaurant";
+      abort.current?.abort();
+      abort.current = new AbortController();
+      dispatch({ type: "swarm/start", restaurant, city: city.trim() });
+      dispatch({ type: "phase", phase: "engine" });
+      // swarm/start resets state, so re-seed the pasted reviews behind it.
+      dispatch({ type: "reviews/collected", reviews });
       dispatch({
-        type: "synthesis/failed",
-        error: e instanceof Error ? e.message : "Synthesis failed.",
+        type: "agent/status",
+        id: "reviews",
+        status: "done",
+        line: `${reviews.length} reviews pasted by the owner`,
+        t: 0,
       });
-    }
-  }, [name, city, draftReplies, reveal]);
+      dispatch({ type: "agent/done", id: "reviews", count: reviews.length, t: 0 });
+      dispatch({
+        type: "agent/evidence",
+        id: "reviews",
+        items: reviews.slice(0, 40).map((r, i) => ({
+          id: `paste-${i}`,
+          kind: "review" as const,
+          text: r.text,
+          source: r.source || "pasted",
+          stars: r.stars,
+          date: r.date,
+          agent: "reviews" as const,
+        })),
+      });
+      // Pass the reviews explicitly — stateRef has not caught up in this tick.
+      void synthesize(restaurant, abort.current.signal, reviews);
+    },
+    [name, city, synthesize],
+  );
 
   // ?demo=1, or the hidden D hotkey on the start screen.
   useEffect(() => {
@@ -179,7 +249,7 @@ export default function App() {
       <PasteDrawer
         open={pasteOpen}
         onClose={() => setPasteOpen(false)}
-        onParsed={(reviews) => dispatch({ type: "reviews/collected", reviews })}
+        onParsed={onPasted}
       />
 
       {state.phase === "start" && (

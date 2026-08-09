@@ -1,7 +1,8 @@
 # Tablestakes — 75-second demo
 
 **Setup before you walk up.** `npm run dev`, browser full-screen on the start
-screen, nothing typed. Second tab pre-loaded on `?demo=1` — don't mention it
+screen, nothing typed. Note the port Vite prints — it is 5173 unless that is
+already taken. Second tab pre-loaded on `?demo=1` — don't mention it
 exists. Know your restaurant: something on University Ave with real Yelp volume
 and at least one press mention. Evvia Estiatorio is the reliable one (219
 evidence passages, Michelin + Infatuation coverage). Tamarine also works.

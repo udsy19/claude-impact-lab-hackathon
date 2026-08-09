@@ -46,7 +46,7 @@ requests, and Anthropic is called with
 
 ### Offline demo
 
-`http://localhost:5173/?demo=1` (or press `D` on the start screen) replays a
+Append `?demo=1` to the dev URL (or press `D` on the start screen) to replay a
 captured swarm run with realistic timing and **zero network calls** — same
 agents, same out-of-order finishes, same amber failure, same streamed
 synthesis, same brief. This is the stage fallback.

@@ -27,7 +27,8 @@
  *   `kind: "review"` evidence item below, is a VERBATIM substring of
  *   SAMPLE_REVIEWS (and therefore of some DEMO_REVIEWS[i].text).
  *   Press/pulse/social evidence is agent-authored prose and intentionally
- *   is not drawn from the review blob.
+ *   is not drawn from the review blob. So are `verdict` and `diner_view` —
+ *   those are conclusions about the corpus, not quotations from it.
  *
  * DEMO_REVIEWS is the 38-review subset the swarm "found" out of the 46 in the
  * blob. Its stars reproduce the planted April 2026 dip:
@@ -46,6 +47,10 @@ import type {
 
 export const DEMO_RESTAURANT = "Casa Verde";
 export const DEMO_CITY = "Palo Alto";
+
+// The offline fixture deliberately ships no photos, so the Brief's photo strip
+// exercises its graceful-skip path (and `?demo=1` still works with wifi off).
+export const DEMO_IMAGES: string[] = [];
 
 // ---------------------------------------------------------------------------
 // Reviews the swarm collected
@@ -462,13 +467,27 @@ The bright spot is a person. Marisol is named in eight reviews across all sevent
 // ---------------------------------------------------------------------------
 
 export const DEMO_ANALYSIS: Analysis = {
+  verdict:
+    "Still a neighborhood favorite, but since April's kitchen change Friday service collapses — and prices went up too.",
+  // No award. Casa Verde has a Michelin *Guide listing* (no star, no Bib) and a
+  // warm Infatuation write-up — neither is a recognition anyone conferred, and
+  // an award is never inferred. An empty array is the honest answer here.
+  badges: [],
+  vitals: {
+    price_tier: "$$",
+    booking_difficulty: "walk-in",
+    busiest: "Friday–Saturday dinner",
+    best_time_to_try: "Tuesday–Thursday, early",
+    // No reviewer names a booking channel, so this stays null.
+    reservation_route: null,
+  },
   patterns: [
     {
-      title: "Friday dinner collapses — two servers covering a full floor",
+      title: "Friday dinner service collapses",
       category: "staffing",
       trend: "new",
       frequency:
-        "6 of 38 reviews, every one of them dated 2026-05-08 or later; zero before that",
+        "6 of 38 reviews — two servers covering a full floor, every one dated 2026-05-08 or later; zero before that",
       excerpts: [
         "Came in on a Friday at 7:30 and waited 25 minutes just to have someone take our drink order. Food took nearly an hour. The room was packed and clearly understaffed — I counted two servers for the whole floor.",
         "Friday night again. Ninety minutes from door to entree. The two servers on the floor were sprinting and apologizing constantly — this is a staffing problem, not a them problem.",
@@ -479,11 +498,11 @@ export const DEMO_ANALYSIS: Analysis = {
       sources: ["yelp.com", "reddit.com", "tripadvisor.com"],
     },
     {
-      title: "Carnitas tacos come out dry — unchanged for seventeen months",
+      title: "Carnitas tacos come out dry",
       category: "food",
       trend: "stable",
       frequency:
-        "16 of 38 reviews, spread evenly from 2025-03 to 2026-08 with no clustering",
+        "16 of 38 reviews — unchanged for seventeen months, spread evenly from 2025-03 to 2026-08 with no clustering",
       excerpts: [
         "Ordered the carnitas tacos on a recommendation and they were dry as sawdust. Tasted like they'd been sitting in a warmer.",
         "The carnitas tacos came out lukewarm and honestly kind of greasy.",
@@ -494,11 +513,11 @@ export const DEMO_ANALYSIS: Analysis = {
       sources: ["yelp.com", "tripadvisor.com", "opentable.com", "reddit.com"],
     },
     {
-      title: "Price is outrunning portion — and it started in April",
+      title: "Prices up, portions down",
       category: "pricing",
       trend: "worsening",
       frequency:
-        "8 of 38 reviews name a dollar figure or a percentage; all 8 are dated 2026-04-02 or later",
+        "8 of 38 reviews name a dollar figure or a percentage; all 8 are dated 2026-04-02 or later — it started in April",
       excerpts: [
         "Prices have crept up. $22 for three carnitas tacos that were, once again, dry. The al pastor is still worth it but I noticed the plate looked smaller than I remember.",
         "Food's still good but it's gotten expensive for what it is. The enchilada plate went from two to what feels like one and a half. Twenty-six dollars is a lot for that.",
@@ -508,11 +527,11 @@ export const DEMO_ANALYSIS: Analysis = {
       sources: ["yelp.com", "reddit.com", "tripadvisor.com"],
     },
     {
-      title: "Weekday service is untouched — the failure is Friday-shaped",
+      title: "Weekdays are fine — the failure is Friday-shaped",
       category: "consistency",
       trend: "stable",
       frequency:
-        "5 of 38 reviews describe a smooth weekday visit, 4 of them inside the same window as the Friday complaints",
+        "5 of 38 reviews describe a smooth weekday visit, 4 of them inside the same window as the Friday complaints — weekday service is untouched",
       excerpts: [
         "Tuesday night, no issues at all, food was hot and fast. Whatever is happening on Fridays isn't happening the rest of the week.",
         "Went on a Tuesday and it was the Casa Verde I know — relaxed, quick, delicious. Marisol was working and everything ran like clockwork.",
@@ -586,6 +605,29 @@ export const DEMO_ANALYSIS: Analysis = {
       why_chosen: "most_promising",
     },
   ],
+  // Same corpus, rendered for someone deciding where to eat tonight. This prose
+  // is conclusion, not quotation, so it is exempt from the verbatim contract —
+  // but it is not allowed to hide the Friday problem.
+  diner_view: {
+    should_you_go:
+      "Yes, on a weekday — the al pastor is still one of the best tacos in Palo Alto, but Friday is a different restaurant right now.",
+    order_this: [
+      "Al pastor tacos — the one thing every source agrees on",
+      "The mole — reviewers call it the sleeper hit nobody talks about",
+      "Salsa flight, and the elote if it's on",
+    ],
+    skip_this: [
+      "The carnitas tacos — dry in sixteen reviews across seventeen months, under two different chefs",
+    ],
+    getting_in:
+      "Walk in. It's not a reservation restaurant; on a weeknight you'll be seated fast. Friday is the exception — one guest waited forty-five minutes for a table they had reserved.",
+    know_before: [
+      "Friday dinner has been falling apart since May 2026: 25 to 90 minutes to food, two servers on a full floor, cold plates. This is the single most-reported thing about the place right now.",
+      "The kitchen changed hands in April 2026. Longtime regulars say the seasoning shifted and the mole is thinner than it was.",
+      "Prices are up roughly 20% in a year — budget about $26 a plate, and around $90 for two with drinks.",
+    ],
+    go_when: "Tuesday–Thursday, early (6–7pm), or weekday lunch",
+  },
 };
 
 // ---------------------------------------------------------------------------

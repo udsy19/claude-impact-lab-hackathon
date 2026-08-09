@@ -7,20 +7,27 @@ exists. Know your restaurant: something on University Ave with real Yelp volume
 and at least one press mention. Evvia Estiatorio is the reliable one (219
 evidence passages, Michelin + Infatuation coverage). Tamarine also works.
 
-Zoom the browser to ~110% so the agent cards read from the back of the room.
+The app renders as a phone. Say "this is the mobile build" — it is.
 
 ---
 
-**0:00 — Start screen. Type the restaurant name live.**
+**0:00 — Start screen. Type it badly, on purpose.**
+
+Type `da pio zer in mountain view` — misspelled, lowercase, no punctuation.
 
 > "Every restaurant owner reads their reviews. One at a time, on their phone, at
 > eleven at night, emotionally. Nobody reads a year of them as one operational
 > dataset — and nobody cross-checks them against what the critics said."
 
-**0:12 — Hit Research. The swarm lights up.** Don't narrate the mechanics; narrate
+**0:08 — It self-corrects on screen: `Doppio Zero · Mountain View ✓`** and starts
+on its own after a beat.
+
+> "You don't have to know how it's spelled. You just have to know where you ate."
+
+**0:12 — The swarm lights up.** Don't narrate the mechanics; narrate
 the stakes. Let the cards do the work.
 
-> "Six researchers just went to work on this restaurant. They're reading a year
+> "Seven researchers just went to work on this restaurant. They're reading a year
 > of customers, every critic in town, the local news, and social — all in
 > parallel, right now."
 
@@ -53,7 +60,13 @@ FIX on their own.
 > "The rating didn't drift — it stepped down. And the news agent found a chef
 > change on the same date. Neither half of that is interesting alone."
 
-**1:12 — Hit Print this brief.** Let the dialog open.
+**1:05 — Flip the toggle to Diner.** Same evidence, second audience.
+
+> "Same corpus, one toggle. The owner gets the fix. The diner gets: should you
+> go, what to order, what to skip, and — this is the part the discovery apps
+> won't do — the bad news, up front."
+
+**1:15 — Flip back to Owner and hit Print.** Let the dialog open.
 
 > "This is the page the owner opens Monday."
 

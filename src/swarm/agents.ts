@@ -20,6 +20,7 @@ import {
   looksLikeReview,
   passages,
   search,
+  searchWithImages,
   type TavilyResult,
   yelpSlug,
 } from "../api/tavily";
@@ -119,36 +120,80 @@ interface Probe {
   maxResults?: number;
 }
 
+interface GatherOpts {
+  /** Flip include_images on these probes and dispatch whatever rides back. */
+  images?: boolean;
+}
+
+/** Images are cosmetic — a bad dispatch must never break the agent around it. */
+function emitImages(ctx: AgentCtx, urls: string[]): void {
+  if (!urls.length) return;
+  try {
+    ctx.dispatch({ type: "images/collected", urls });
+  } catch {
+    /* ignore — the brief renders fine without a photo strip */
+  }
+}
+
 /**
  * Fire probes concurrently, keep whatever lands, and report every domain seen.
  * Only throws if EVERY probe failed — that means the key or network is broken,
  * which the operator should see rather than a silent empty agent.
+ *
+ * With `images`, the SAME probes carry include_images — no extra round trips.
  */
 async function gather(
   ctx: AgentCtx,
   id: AgentId,
   probes: Probe[],
+  { images = false }: GatherOpts = {},
 ): Promise<TavilyResult[]> {
   const settled = await Promise.allSettled(
-    probes.map((p) =>
-      search(p.query, {
+    probes.map((p) => {
+      const opts = {
         domains: p.domains,
         maxResults: p.maxResults ?? 8,
         raw: true,
         signal: ctx.signal,
-      }),
-    ),
+      };
+      return images
+        ? searchWithImages(p.query, opts)
+        : search(p.query, opts).then((results) => ({ results, images: [] as string[] }));
+    }),
   );
   const results: TavilyResult[] = [];
-  for (const s of settled) if (s.status === "fulfilled") results.push(...s.value);
+  const photos: string[] = [];
+  for (const s of settled) {
+    if (s.status !== "fulfilled") continue;
+    results.push(...s.value.results);
+    photos.push(...s.value.images);
+  }
 
   if (!results.length) {
     const failure = settled.find((s) => s.status === "rejected");
     if (failure && failure.status === "rejected") throw failure.reason;
   }
 
+  emitImages(ctx, photos);
   for (const r of results) note(ctx, id, hostOf(r.url));
   return results;
+}
+
+/**
+ * One extra image-only search, used by the orchestrator when the main sweep
+ * produced no photos at all. Cheap (no raw content) and never throws.
+ */
+export async function photoTopUp(ctx: AgentCtx): Promise<void> {
+  try {
+    const { images } = await searchWithImages(QUERIES(ctx.name, ctx.city).photos[0], {
+      maxResults: 8,
+      raw: false,
+      signal: ctx.signal,
+    });
+    emitImages(ctx, images);
+  } catch {
+    /* cosmetic — a failed photo probe is not a swarm failure */
+  }
 }
 
 interface Tagged {
@@ -262,7 +307,8 @@ export async function reviewsAgent(ctx: AgentCtx): Promise<void> {
         probes.push({ query: q, domains: ["yelp.com"], maxResults: 10 });
       }
     }
-    const fetched = await gather(ctx, id, probes);
+    // Yelp menu-item pages are photo-dense; ride the probes we already make.
+    const fetched = await gather(ctx, id, probes, { images: true });
 
     // Menu-item pages first so the 90-passage cap spends itself on real prose.
     const pool = [...located, ...fetched].sort(
@@ -356,12 +402,17 @@ export async function pressAgent(ctx: AgentCtx): Promise<void> {
     status(ctx, id, "searching", "Sweeping critics and guides");
 
     // site: lives inside the michelin/jamesbeard queries, so no domain filter.
-    const results = await gather(ctx, id, [
-      { query: Q.press[0], domains: DOMAINS.press },
-      { query: Q.press[1] },
-      { query: Q.press[2] },
-      { query: Q.press[3] },
-    ]);
+    const results = await gather(
+      ctx,
+      id,
+      [
+        { query: Q.press[0], domains: DOMAINS.press },
+        { query: Q.press[1] },
+        { query: Q.press[2] },
+        { query: Q.press[3] },
+      ],
+      { images: true },
+    );
 
     status(ctx, id, "reading", `Reading ${results.length} pages`);
     // No looksLikeReview here — criticism is written in the third person.

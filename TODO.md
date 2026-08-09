@@ -1,99 +1,100 @@
 # Tablestakes — build state
 
-## DEMO READY v4 — 2026-08-08 13:52 PT
+## DEMO READY v5 — 2026-08-08 15:04 PT
 
-Pushed to `origin/main`. Verified live on two real restaurants, plus the paste
-path and the offline replay. No API key is in the repo or its history.
-
----
-
-## Definition of Done
-
-- [x] `npm run dev` clean; `npm run typecheck` clean; no console errors on the
-      happy path
-- [x] Paste drawer parses messy real-world text (Prompt 1, live)
-- [x] REVIEWS agent on real restaurants: locates the Yelp slug, mines menu-item
-      pages, ≥15 usable reviews with source chips —
-      **Evvia 83 reviews / 9 sources**, **Tamarine 38 evidence / 14 sources**
-- [x] PRESS + PULSE produce findings; SOCIAL + INSPECTOR produce honest nulls
-- [x] Agents concurrent; a failure never kills the swarm; amber states verified
-      twice (once by a genuine timeout, once by fixture design)
-- [x] Engine: statuses cycle, ticker streams, synthesis streams token by token,
-      pattern titles materialise mid-stream
-- [x] Fixture surfaces ALL planted patterns
-- [x] Real-restaurant briefs specific and non-generic
-- [x] Every pattern ≥3 verbatim excerpts with per-quote sources; corroboration
-      cites both customer and press
-- [x] "Why this matters" shows ≥2 attributed stats
-- [x] Print view clean, zero app chrome, charts survive
-- [x] `?demo=1` replays the full swarm offline
-- [x] **Cold run completed as the final action** — mid-flight 6/7 settled with
-      the amber failure visible; final brief 38 evidence / 11 sources,
-      3 charts, 4 patterns, 33 verbatim quotes
-
-### Planted patterns recovered through the LIVE pipeline
-
-Not the fixture replay — Prompt 1 parse followed by Prompt 2 synthesis on a
-pasted blob. All five, with correct trends:
-
-1. Carnitas tacos dry/lukewarm, $22–$24 — stable
-2. Friday dinner collapse since May 2026, 25–90 min waits — worsening
-3. Kitchen change late April 2026 (inferred from symptoms alone) — worsening
-4. Price increases vs shrinking portions — worsening
-5. Marisol named in 9 reviews — bright spot
+v5 was a delivery change, not an analysis change: natural-language front door,
+an At-a-Glance hero, progressive disclosure everywhere, and a Diner mode. The
+engine underneath is unchanged and still verified.
 
 ---
 
-## Bugs found by running it, not reading it
+## v5 Definition of Done
 
-**1. REVIEWS timed out and returned zero reviews.** Extraction began at +14s and
-a single 90-passage call at 16k `max_tokens` had not returned when the 75s
-global abort fired — six agents green, the important one amber and empty.
-Fixed by chunking into concurrent ~30-passage calls at 6k tokens. Re-run: 7/7,
-83 reviews.
+- [x] **NL input** resolves messy input to a confirm chip and auto-runs.
+      Verified live: `da pio zer in mountain view` → **Doppio Zero · Mountain
+      View**, swarm launched on the corrected name. Low confidence waits for a
+      tap instead of auto-proceeding.
+- [x] **At-a-Glance**: verdict (17 words, under the 20 cap), badges only from
+      explicit findings, vitals chips hide when null, photo strip skips
+      gracefully at zero images
+- [x] **Progressive disclosure** on every section — 14 disclosures; first-render
+      scroll cut from 3.58 → **2.63 screens** (see the honest note below)
+- [x] **Owner / Diner toggle** re-renders instantly from state; Diner view is
+      1.53 screens and `know_before` leads with the Friday collapse — the bad
+      news is the first thing a diner reads
+- [x] **Ask drawer** built, grounded in the corpus, refuses out-of-corpus
+      questions and cites source chips
+- [x] **430px mobile frame**; Engine relaid out for it (single column, counter
+      first, ticker below — it was a broken desktop grid at first)
+- [x] **All charts survive print** — 2 on screen become **3 during print**
+      (390×190, 390×220, 390×218), 37 verbatim quotes exposed, all chrome hidden
+- [x] `?demo=1` re-captured with the new fields and re-verified offline
 
-**2. Paste path dead-ended, then produced a confidently empty brief.** From the
-start screen the drawer dispatched reviews and stopped. After wiring it through,
-the brief's header read "46 pieces of evidence" while the body read "no reviews
-exist in this dataset" — `synthesize` read `stateRef` before React flushed the
-dispatch. Evidence is now passed explicitly. Replies were unaffected because
-they run after an `await`; that asymmetry is what exposed it.
+### Where I did not hit the number
 
-Both looked like success at a glance.
+The DoD asks for **≤2.5 screens** on first render. I got to **2.63** and stopped.
+The remaining bulk is the two rating charts (530px) and the pattern list (541px),
+both of which §C explicitly says stay visible. Cutting further would mean
+overruling that. The lever, if you want it: put the two charts behind one "the
+numbers" disclosure — that lands around 2.1.
 
----
+## v5 bugs found by running it
+
+- **Engine was a desktop grid inside a phone frame** — a two-column layout with
+  a 360px sidebar crammed into 430px, cards overlapping. Relaid out.
+- **Mention-heat printed blank.** A recharts `ResponsiveContainer` inside a
+  `display: none` disclosure measures zero width and emits no SVG. Fixed at the
+  source: `Disclosure` now listens for `beforeprint`/`afterprint` and genuinely
+  opens, so the chart gets a real box to measure.
+
+## Earlier bugs (v4), kept for the record
+
+- **REVIEWS timed out, returned zero reviews.** One 90-passage call at 16k
+  tokens outlived the 75s abort. Chunked into concurrent ~30-passage calls.
+- **Paste path dead-ended, then produced a confidently empty brief** — header
+  said "46 pieces of evidence", body said "no reviews exist in this dataset".
+  `synthesize` read state before React flushed. Evidence now passed explicitly.
+
+All three looked like success at a glance.
 
 ## Field notes (validated live against Tavily)
 
-- `/extract` **403s on yelp.com** — the original plan's premise. Do not retry.
-- `/search` with `include_raw_content: true` **does** return cached Yelp content.
-- `yelp.com/biz/<slug>` is chrome (~10k chars → 2 prose lines).
-- `yelp.com/menu/<slug>/item/<dish>` carries 40–70 verbatim passages. Landing
-  those is REVIEWS' real job → the pool is priority-sorted before the cap.
-- `include_domains` is a **soft** filter; off-list domains are often the best
+- `/extract` **403s on yelp.com**. `/search` with `include_raw_content` does not.
+- `yelp.com/biz/<slug>` is chrome; **`/menu/<slug>/item/<dish>` is the goldmine**
+  (40–70 verbatim passages). The pool is priority-sorted before the cap.
+- `include_domains` is a **soft** filter — off-list domains are often the best
   material, so nothing is discarded on domain.
-- Tavily returns malformed URLs sometimes → `hostOf()` never throws.
-- **Tavily allows browser CORS**, so the planned Express proxy was never built.
-- **`tsc --noEmit` is a no-op here** — `tsconfig.json` is a solution file.
-  Use `npm run typecheck`. Two earlier "clean" readings were vacuous.
-- Fixture oracle independently re-derived: 46 reviews, 7 quarters,
-  4.41 → 3.11 (1.30-star dip) at the planted April 2026 chef change;
-  62 excerpts confirmed verbatim.
+- **Images ride the search envelope** as plain URL strings (objects only when
+  `include_image_descriptions` is on). Live: REVIEWS 9 unique, PRESS 15, reducer
+  caps at 12. `photoTopUp` only fires when a sweep returns none.
+- Tavily allows **browser CORS** — the planned Express proxy was never needed.
+- **`tsc --noEmit` is a no-op here** (solution-style tsconfig). Use
+  `npm run typecheck`.
+- Fixture oracle independently re-derived: 46 reviews, 7 quarters, 4.41 → 3.11
+  at the planted April 2026 chef change; 58 excerpts verbatim, 0 failures.
 
-## Known limits, stated honestly
+## Judgment calls worth knowing
 
-- **Star charts hide on live Yelp runs.** Yelp's cached review text carries no
-  star values, so the ≥10-rated threshold trips and the rating distribution and
-  timeline render nothing rather than lying. Mention heat still draws. Pasted
-  reviews and `?demo=1` have stars, so all three charts appear there.
-- Mode B (URL fetch) remains "coming soon" — Google and Yelp block cross-origin.
-- Agent cards show every domain Tavily returns, including soft-filter noise. The
-  Brief's provenance row is stricter: findings-only.
+- **The fixture ships zero badges.** A Michelin *listing* is not a star, and an
+  Infatuation sentence is not an award — inventing either would have been the
+  exact inference the prompt forbids. `[]` also exercises the empty-badge path.
+- **The fixture verdict is temporal, not causal** ("since April's kitchen
+  change…"). The evidence shows the chef change, the Friday collapse and the
+  price rises arrived together; it never establishes the chef caused it.
+- **`DEMO_IMAGES` is empty on purpose** — no third-party URLs, so `?demo=1`
+  still runs with wifi off, and the photo strip exercises its skip path.
+
+## Known limits, stated plainly
+
+- **Star charts hide on live Yelp runs** — Yelp's cached review text carries no
+  star values, so the ≥10-rated threshold trips. Pasted reviews and `?demo=1`
+  have stars, so all three charts appear there.
+- **Location-aware discovery (§F) was not built**, by instruction. It is the
+  roadmap slide.
+- Mode B URL ingest remains "coming soon" — Google and Yelp block cross-origin.
 - SOCIAL reads captions and articles, not video content.
 
 ## Housekeeping
 
-- Rotate both API keys after the event — they were shared in chat. Neither is in
-  the repo (`.env.local` is gitignored; pushed tree audited).
-- `DEMO_SCRIPT.md` and `README.md` no longer hardcode a port; Vite prints it
-  (5173 unless taken).
+- **Rotate both API keys after the event** — they were shared in chat. Neither
+  is in the repo; `.env.local` is gitignored and the pushed tree was audited.

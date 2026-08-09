@@ -8,6 +8,7 @@ import {
   contextAgent,
   inspectorAgent,
   menuAgent,
+  photoTopUp,
   pressAgent,
   pulseAgent,
   reviewsAgent,
@@ -49,7 +50,15 @@ export async function runSwarm(opts: {
 
   dispatch({ type: "swarm/start", restaurant: name, city });
 
-  const ctx: AgentCtx = { name, city, dispatch, signal: controller.signal, t };
+  // runSwarm holds no state, so it taps its own dispatch to know whether the
+  // main sweep produced any photos before deciding to spend a top-up probe.
+  let imageCount = 0;
+  const tap = (e: SwarmEvent) => {
+    if (e.type === "images/collected") imageCount += e.urls.length;
+    dispatch(e);
+  };
+
+  const ctx: AgentCtx = { name, city, dispatch: tap, signal: controller.signal, t };
 
   const agents = [reviewsAgent, pressAgent, pulseAgent, socialAgent];
   if (tier2) agents.push(menuAgent, inspectorAgent, contextAgent);
@@ -58,6 +67,8 @@ export async function runSwarm(opts: {
     // allSettled, not all: agents already swallow their own errors, but this
     // guarantees a rejection from anywhere can never cancel a sibling.
     await Promise.allSettled(agents.map((agent) => agent(ctx)));
+    // Still inside the 75s budget — the shared controller aborts it if we run out.
+    if (imageCount === 0 && !controller.signal.aborted) await photoTopUp(ctx);
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener("abort", onCallerAbort);

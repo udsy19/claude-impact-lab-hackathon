@@ -94,6 +94,7 @@ export type SwarmEvent =
   | { type: "findings/collected"; agent: AgentId; findings: Finding[] }
   | { type: "social/collected"; pulse: SocialPulse }
   | { type: "context/collected"; stats: ContextStat[] }
+  | { type: "images/collected"; urls: string[] }
   | { type: "synthesis/start" }
   | { type: "synthesis/token"; text: string }
   | { type: "synthesis/done"; analysis: Analysis }
@@ -112,6 +113,7 @@ export interface SwarmState {
   findings: Record<string, Finding[]>;
   social: SocialPulse | null;
   contextStats: ContextStat[];
+  images: string[];
   narration: string;
   analysis: Analysis | null;
   error: string | null;
@@ -148,13 +150,51 @@ export interface KeyReview {
   why_chosen: "most_representative" | "most_alarming" | "most_promising";
 }
 
+/** Award/recognition chip. Only ever built from an explicit finding. */
+export interface Badge {
+  label: string;
+  domain: string;
+  year: string | null;
+}
+
+/** Every field is null when the evidence doesn't support it; chips hide. */
+export interface Vitals {
+  price_tier: string | null;
+  booking_difficulty: "walk-in" | "plan-ahead" | "hard" | "lottery" | null;
+  busiest: string | null;
+  best_time_to_try: string | null;
+  reservation_route: string | null;
+}
+
+/** The second render of the same corpus — see DinerView in Brief.tsx. */
+export interface DinerView {
+  should_you_go: string;
+  order_this: string[];
+  skip_this: string[];
+  getting_in: string;
+  know_before: string[];
+  go_when: string | null;
+}
+
 export interface Analysis {
+  verdict: string;
+  badges: Badge[];
+  vitals: Vitals | null;
   patterns: Pattern[];
   delta: string;
   corroboration: string;
   one_fix: { action: string; why_this_one: string; evidence: string[] };
   bright_spots: { finding: string; excerpts: string[] }[];
   key_reviews: KeyReview[];
+  diner_view: DinerView | null;
+}
+
+/** What the natural-language resolver returns for a typed query. */
+export interface Resolved {
+  name_guess: string;
+  city_guess: string | null;
+  confidence: "high" | "medium" | "low";
+  corrected_from: string | null;
 }
 
 export interface Reply {

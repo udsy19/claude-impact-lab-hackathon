@@ -42,6 +42,8 @@ const MAX_EVIDENCE = 120;
 const MAX_LOG = 3;
 /** Two reviews are "the same" if their first 60 normalised chars match. */
 const REVIEW_KEY_CHARS = 60;
+/** The Brief's photo strip only ever shows a handful. */
+const MAX_IMAGES = 12;
 
 function seedAgent(id: AgentId): AgentState {
   return {
@@ -68,6 +70,7 @@ export function initialState(restaurant: string, city: string): SwarmState {
     findings: {},
     social: null,
     contextStats: [],
+    images: [],
     narration: "",
     analysis: null,
     error: null,
@@ -161,6 +164,20 @@ export function reducer(state: SwarmState, event: SwarmEvent): SwarmState {
 
     case "context/collected":
       return { ...state, contextStats: event.stats };
+
+    case "images/collected": {
+      if (state.images.length >= MAX_IMAGES) return state;
+      const seen = new Set(state.images);
+      const merged = [...state.images];
+      for (const url of event.urls) {
+        if (!url || seen.has(url)) continue;
+        seen.add(url);
+        merged.push(url);
+        if (merged.length >= MAX_IMAGES) break;
+      }
+      if (merged.length === state.images.length) return state;
+      return { ...state, images: merged };
+    }
 
     case "synthesis/start":
       return { ...state, narration: "", analysis: null, error: null };

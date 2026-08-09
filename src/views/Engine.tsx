@@ -137,29 +137,50 @@ export default function Engine({
   const synthesizing = state.narration.length > 0;
 
   return (
-    <div className="engine-root px-6 py-8">
-      <header className="mx-auto flex max-w-[1400px] items-baseline justify-between">
-        <div>
-          <h1 className="font-serif text-3xl tracking-tight text-slate-100">
+    /* Single column: this lives inside a 430px phone frame. */
+    <div className="engine-root px-4 py-5">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate font-serif text-2xl tracking-tight text-slate-100">
             {state.restaurant}
           </h1>
-          <p className="mt-1 font-mono text-xs text-[#7c8899]">
-            {state.city} · swarm active · {agents.filter((a) => a.status === "done").length}
-            /{agents.length} agents settled
+          <p className="mt-0.5 font-mono text-[0.68rem] text-[#7c8899]">
+            {state.city} · {agents.filter((a) => a.status === "done").length}/
+            {agents.length} settled
           </p>
         </div>
         <button
           onClick={onOpenPaste}
-          className="rounded border border-[#232a33] px-3 py-1.5 font-mono text-[0.7rem] text-[#9fb0c2] hover:border-[#3a4553] hover:text-slate-200"
+          className="shrink-0 rounded border border-[#232a33] px-2.5 py-1.5 font-mono text-[0.65rem] text-[#9fb0c2] hover:border-[#3a4553] hover:text-slate-200"
         >
-          paste reviews
+          paste
         </button>
       </header>
 
-      <div className="mx-auto mt-8 grid max-w-[1400px] gap-6 lg:grid-cols-[1fr_360px]">
+      {/* Counter first — it is the number that climbs during the demo. */}
+      <div className="mt-4 rounded-lg border border-[#232a33] bg-[#12151a] px-4 py-3">
+        <div className="flex items-baseline justify-between">
+          <p className="font-mono text-[0.62rem] tracking-[0.18em] text-[#7c8899]">
+            EVIDENCE COLLECTED
+          </p>
+          <p className="font-mono text-3xl leading-none text-[#d2603f] tabular-nums">
+            {state.evidence.length}
+          </p>
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <Stat label="reviews" value={String(state.reviews.length)} />
+          <Stat label="avg" value={avg === null ? "—" : `${avg.toFixed(1)}★`} />
+          <Stat
+            label="span"
+            value={range.from ? range.label.replace(/ /g, "") : "—"}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-4">
         {/* Agent grid + synthesis */}
         <div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-2.5 grid-cols-1 min-[380px]:grid-cols-2">
             <AnimatePresence>
               {agents.map((a) => (
                 <AgentCard key={a.id} a={a} />
@@ -189,26 +210,9 @@ export default function Engine({
           </AnimatePresence>
         </div>
 
-        {/* Evidence ticker */}
+        {/* Evidence ticker — below the agents in the phone column */}
         <aside className="rounded-lg border border-[#232a33] bg-[#12151a]">
-          <div className="border-b border-[#232a33] px-4 py-3">
-            <p className="font-mono text-[0.68rem] tracking-[0.18em] text-[#7c8899]">
-              EVIDENCE COLLECTED
-            </p>
-            <p className="mt-1 font-mono text-3xl text-[#d2603f] tabular-nums">
-              {state.evidence.length}
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <Stat label="reviews" value={String(state.reviews.length)} />
-              <Stat label="avg" value={avg === null ? "—" : `${avg.toFixed(1)}★`} />
-              <Stat
-                label="span"
-                value={range.from ? range.label.replace(/ /g, "") : "—"}
-              />
-            </div>
-          </div>
-
-          <div className="scroll-thin max-h-[62vh] space-y-2 overflow-y-auto p-3">
+          <div className="scroll-thin max-h-[46vh] space-y-2 overflow-y-auto p-3">
             <AnimatePresence initial={false}>
               {state.evidence.slice(0, 40).map((e) => (
                 <motion.div

@@ -220,6 +220,15 @@ PART TWO — a fenced json block with exactly this shape:
 
 \`\`\`json
 {
+  "verdict": "ONE sentence, 20 words maximum, the whole situation at once",
+  "badges": [{"label": "Michelin ★ (retained 2026)", "domain": "guide.michelin.com", "year": "2026"}],
+  "vitals": {
+    "price_tier": "$$$ or null",
+    "booking_difficulty": "walk-in|plan-ahead|hard|lottery, or null",
+    "busiest": "e.g. Fri-Sat dinner, or null",
+    "best_time_to_try": "e.g. Tuesday early seating, or null",
+    "reservation_route": "e.g. Resy, 2 weeks out, notify list, or null"
+  },
   "patterns": [
     {"title": "", "category": "service|food|pacing|pricing|staffing|ambience|consistency",
      "frequency": "", "trend": "improving|worsening|stable|new",
@@ -232,11 +241,34 @@ PART TWO — a fenced json block with exactly this shape:
   "key_reviews": [
     {"quote": "", "stars": null, "date": null, "source": "",
      "why_chosen": "most_representative|most_alarming|most_promising"}
-  ]
+  ],
+  "diner_view": {
+    "should_you_go": "one honest sentence to a stranger deciding tonight",
+    "order_this": ["dishes with cross-source evidence"],
+    "skip_this": ["only where evidence exists, else []"],
+    "getting_in": "the realistic play - how far ahead, which platform, off-peak tricks",
+    "know_before": ["1-3 things a diner would want warned about"],
+    "go_when": "least-busy window, or null"
+  }
 }
 \`\`\`
 
 Hard rules:
+- "verdict" is the product. One sentence, 20 words or fewer, naming the actual
+  situation — the tension, not a summary. "World-class kitchen with a compliance
+  time bomb: fix hygiene before re-inspection or the acclaim inverts" is the
+  register. Never bland, never hedged.
+- "badges" come ONLY from explicit findings. A Michelin star, a James Beard
+  award, a Times ranking, an Eater 38 listing — each must appear in the evidence.
+  Never infer an award from prestige, tone, or price. If none, return [].
+- "vitals" fields are null unless the evidence actually supports them. A guessed
+  reservation route is worse than a hidden chip.
+- Pattern "title" is a HEADLINE, not a summary: 10 words maximum. Put the detail
+  in "frequency" and the excerpts.
+- "diner_view" answers a stranger deciding where to eat tonight, from the same
+  evidence. "know_before" must state health-inspection or compliance reality
+  plainly when the evidence contains it — a discovery tool that hides citations
+  is worthless. Return null for diner_view only if there is genuinely nothing.
 - Excerpts are VERBATIM substrings of the input. Never paraphrased, never
   stitched from two reviews. Trim to the relevant sentence or two.
 - Every pattern needs at least 3 excerpts and a lever the owner can pull Monday
@@ -258,6 +290,61 @@ Hard rules:
 
 Before responding, verify: could a different restaurant's owner mistake this
 brief for their own? If yes, it is too generic — regenerate with more specificity.
+`.trim();
+
+/** Natural-language front door. One fast call, no streaming. */
+export const RESOLVE_PROMPT = (query: string, defaultCity: string) => `
+The user typed a restaurant, possibly misspelled, possibly with a location,
+possibly vague. Resolve it to the most plausible real restaurant.
+
+User input: "${query}"
+Their default city, if none is given: "${defaultCity}"
+
+Return ONLY JSON:
+{"name_guess": string, "city_guess": string|null, "confidence": "high"|"medium"|"low", "corrected_from": string|null}
+
+Rules:
+- Fix obvious misspellings and phonetic spellings to the real restaurant name.
+  "da pio zer in mountain view" -> {"name_guess": "Doppio Zero", "city_guess":
+  "Mountain View", "corrected_from": "da pio zer"}.
+- "corrected_from" is the user's original spelling of the NAME only, and null if
+  you did not change it.
+- "city_guess" is null when the user named no location. Do not invent one.
+- "confidence" is low when the input could plausibly be several different
+  restaurants, or when you are unsure the place exists.
+- Return the name as it is actually written by the restaurant (correct
+  capitalisation and accents).
+
+${NO_FENCE}
+`.trim();
+
+/** Grounded Q&A over the collected corpus. */
+export const ASK_PROMPT = (
+  name: string,
+  question: string,
+  evidence: string,
+  brief: string,
+) => `
+You are answering a question about "${name}" using ONLY the evidence below.
+
+<evidence>
+${evidence}
+</evidence>
+
+<brief>
+${brief}
+</brief>
+
+Question: ${question}
+
+Rules:
+- Answer only from the evidence. Two or three sentences, plain and direct.
+- Cite the source domains you used, as a JSON array of domain strings.
+- If the evidence does not cover the question, say so in one line and name what
+  would answer it. Do not speculate, and do not fall back on general knowledge
+  about this cuisine, city, or restaurant type.
+
+Return ONLY JSON: {"answer": string, "sources": ["yelp.com"]}
 `.trim();
 
 /** Prompt 3 — REPLIES (footer). */

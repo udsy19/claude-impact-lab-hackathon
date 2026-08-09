@@ -60,13 +60,42 @@ export interface SearchOpts {
   domains?: readonly string[];
   maxResults?: number;
   raw?: boolean;
+  /** Ask for `include_images`. Costs nothing extra — images ride the envelope. */
+  images?: boolean;
   signal?: AbortSignal;
 }
 
-export async function search(
+interface SearchEnvelope {
+  results?: TavilyResult[];
+  images?: unknown;
+}
+
+/**
+ * The `images` array lives on the response envelope, not on the results.
+ * Validated live 2026-08-08: entries are plain URL strings by default, and
+ * become `{url, title, description}` objects when image descriptions are on.
+ * Both shapes are handled; anything else is dropped.
+ */
+function normaliseImages(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const entry of raw) {
+    let url: unknown = entry;
+    if (entry && typeof entry === "object") url = (entry as { url?: unknown }).url;
+    if (typeof url !== "string") continue;
+    const clean = url.trim();
+    if (!/^https?:\/\//i.test(clean) || seen.has(clean)) continue;
+    seen.add(clean);
+    out.push(clean);
+  }
+  return out;
+}
+
+async function searchEnvelope(
   query: string,
-  { domains, maxResults = 8, raw = true, signal }: SearchOpts = {},
-): Promise<TavilyResult[]> {
+  { domains, maxResults = 8, raw = true, images = false, signal }: SearchOpts,
+): Promise<{ results: TavilyResult[]; images: string[] }> {
   const body: Record<string, unknown> = {
     query,
     search_depth: "advanced",
@@ -74,8 +103,27 @@ export async function search(
     max_results: maxResults,
   };
   if (domains?.length) body.include_domains = [...domains];
-  const data = await post<{ results?: TavilyResult[] }>(SEARCH_URL, body, signal);
-  return (data.results ?? []).filter((r) => r && typeof r.url === "string");
+  if (images) body.include_images = true;
+  const data = await post<SearchEnvelope>(SEARCH_URL, body, signal);
+  return {
+    results: (data.results ?? []).filter((r) => r && typeof r.url === "string"),
+    images: normaliseImages(data.images),
+  };
+}
+
+export async function search(
+  query: string,
+  opts: SearchOpts = {},
+): Promise<TavilyResult[]> {
+  return (await searchEnvelope(query, opts)).results;
+}
+
+/** Same probe as search(), but also returns deduped absolute image URLs. */
+export async function searchWithImages(
+  query: string,
+  opts: SearchOpts = {},
+): Promise<{ results: TavilyResult[]; images: string[] }> {
+  return searchEnvelope(query, { ...opts, images: true });
 }
 
 /** Kept for non-Yelp targets (press articles extract fine). */

@@ -102,6 +102,7 @@ export const QUERIES = (name: string, city: string) => ({
     `"${name}" "${city}" twitter OR x.com post`,
   ],
   menu: [`"${name}" "${city}" menu prices`],
+  photos: [`"${name}" "${city}" restaurant photos interior dishes`],
   inspection: [`"${name}" "${city}" health inspection`],
   context: [
     `restaurant industry statistics online reviews impact revenue`,

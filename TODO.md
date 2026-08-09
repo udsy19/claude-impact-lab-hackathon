@@ -1,59 +1,67 @@
-# Tablestakes — build state (v4: the research swarm)
+# Tablestakes — build state
 
-## DEMO READY v4 — 2026-08-08 13:12 PT
+## DEMO READY v4 — 2026-08-08 13:52 PT
 
-Verified live, end to end, on two real restaurants with both API keys.
+Pushed to `origin/main`. Verified live on two real restaurants, plus the paste
+path and the offline replay. No API key is in the repo or its history.
 
 ---
 
 ## Definition of Done
 
 - [x] `npm run dev` clean; `npm run typecheck` clean; no console errors on the
-      happy path (the `NARRATION_CHUNKS` errors in the log were transient HMR
-      artifacts while a fixture was mid-write; file is clean, verified)
-- [x] Paste drawer parses messy real-world text (Prompt 1)
-- [x] REVIEWS agent on a real Palo Alto restaurant: locates the Yelp slug,
-      mines menu-item pages, lands **≥15 usable reviews with source chips** —
+      happy path
+- [x] Paste drawer parses messy real-world text (Prompt 1, live)
+- [x] REVIEWS agent on real restaurants: locates the Yelp slug, mines menu-item
+      pages, ≥15 usable reviews with source chips —
       **Evvia 83 reviews / 9 sources**, **Tamarine 38 evidence / 14 sources**
-- [x] PRESS and PULSE produce findings; INSPECTOR/SOCIAL produce honest nulls
-- [x] All agents concurrent; a failing agent never kills the swarm; failures
-      show amber (verified twice — once by a real timeout, once by design)
-- [x] Engine: statuses cycle, ticker streams, synthesis tokens stream, pattern
-      titles materialise mid-stream
-- [x] Fixture surfaces ALL planted patterns (Friday service, carnitas, Marisol)
-- [x] Real-restaurant briefs are specific and non-generic (see below)
+- [x] PRESS + PULSE produce findings; SOCIAL + INSPECTOR produce honest nulls
+- [x] Agents concurrent; a failure never kills the swarm; amber states verified
+      twice (once by a genuine timeout, once by fixture design)
+- [x] Engine: statuses cycle, ticker streams, synthesis streams token by token,
+      pattern titles materialise mid-stream
+- [x] Fixture surfaces ALL planted patterns
+- [x] Real-restaurant briefs specific and non-generic
 - [x] Every pattern ≥3 verbatim excerpts with per-quote sources; corroboration
       cites both customer and press
 - [x] "Why this matters" shows ≥2 attributed stats
-- [x] Print view: clean, zero app chrome, charts survive
+- [x] Print view clean, zero app chrome, charts survive
 - [x] `?demo=1` replays the full swarm offline
-- [x] Cold run completed as the final action
+- [x] **Cold run completed as the final action** — mid-flight 6/7 settled with
+      the amber failure visible; final brief 38 evidence / 11 sources,
+      3 charts, 4 patterns, 33 verbatim quotes
 
-### Evidence the briefs are not generic
+### Planted patterns recovered through the LIVE pipeline
 
-**Evvia** — one fix: *"pull the tiropita off the line and rebuild the filling to
-a feta-dominant spec — minimum 70% feta... audit dolmathes portion count: move
-from three to five pieces or reduce the $7 price."* Named dishes, a spec, a
-price, a portion count.
+Not the fixture replay — Prompt 1 parse followed by Prompt 2 synthesis on a
+pasted blob. All five, with correct trends:
 
-**Tamarine** — one fix: *"Install a documented expeditor protocol: the kitchen
-does not fire all dishes to the pass simultaneously..."* And the social-collision
-rule fired unprompted: *"Papaya salad and garlic noodles are viral on
-TikTok/Instagram but papaya salad has documented execution issues"* — exactly
-the pattern the spec called the highest-leverage finding available.
+1. Carnitas tacos dry/lukewarm, $22–$24 — stable
+2. Friday dinner collapse since May 2026, 25–90 min waits — worsening
+3. Kitchen change late April 2026 (inferred from symptoms alone) — worsening
+4. Price increases vs shrinking portions — worsening
+5. Marisol named in 9 reviews — bright spot
 
 ---
 
-## The one live bug found and fixed
+## Bugs found by running it, not reading it
 
-**REVIEWS timed out and returned zero reviews on the first live run.** It began
-its extraction at +14s and a single 90-passage call at 16k `max_tokens` had not
-finished when the 75s global abort fired — six agents green, the important one
-amber and empty.
+**1. REVIEWS timed out and returned zero reviews.** Extraction began at +14s and
+a single 90-passage call at 16k `max_tokens` had not returned when the 75s
+global abort fired — six agents green, the important one amber and empty.
+Fixed by chunking into concurrent ~30-passage calls at 6k tokens. Re-run: 7/7,
+83 reviews.
 
-Fix: chunk the extraction into concurrent ~30-passage calls at 6k tokens
-(`REVIEW_CHUNK`). Wall clock becomes the slowest chunk rather than the sum, and
-a failed chunk costs only its own slice. Re-run: 7/7 settled, 83 reviews.
+**2. Paste path dead-ended, then produced a confidently empty brief.** From the
+start screen the drawer dispatched reviews and stopped. After wiring it through,
+the brief's header read "46 pieces of evidence" while the body read "no reviews
+exist in this dataset" — `synthesize` read `stateRef` before React flushed the
+dispatch. Evidence is now passed explicitly. Replies were unaffected because
+they run after an `await`; that asymmetry is what exposed it.
+
+Both looked like success at a glance.
+
+---
 
 ## Field notes (validated live against Tavily)
 
@@ -65,21 +73,27 @@ a failed chunk costs only its own slice. Re-run: 7/7 settled, 83 reviews.
 - `include_domains` is a **soft** filter; off-list domains are often the best
   material, so nothing is discarded on domain.
 - Tavily returns malformed URLs sometimes → `hostOf()` never throws.
-- **Tavily allows browser CORS** (preflight returns the origin + `authorization`),
-  so the planned Express proxy was never needed.
+- **Tavily allows browser CORS**, so the planned Express proxy was never built.
 - **`tsc --noEmit` is a no-op here** — `tsconfig.json` is a solution file.
   Use `npm run typecheck`. Two earlier "clean" readings were vacuous.
 - Fixture oracle independently re-derived: 46 reviews, 7 quarters,
-  4.41 → 3.11 (1.30-star dip) at the planted April 2026 chef change; 62
-  excerpts confirmed verbatim.
+  4.41 → 3.11 (1.30-star dip) at the planted April 2026 chef change;
+  62 excerpts confirmed verbatim.
 
 ## Known limits, stated honestly
 
 - **Star charts hide on live Yelp runs.** Yelp's cached review text carries no
-  star values, so `ratedCount < 10` trips the honesty rule and the rating
-  distribution and timeline hide themselves rather than lie. Mention heat still
-  renders. The `?demo=1` fixture has stars, so all three charts show there.
+  star values, so the ≥10-rated threshold trips and the rating distribution and
+  timeline render nothing rather than lying. Mention heat still draws. Pasted
+  reviews and `?demo=1` have stars, so all three charts appear there.
 - Mode B (URL fetch) remains "coming soon" — Google and Yelp block cross-origin.
-- Agent cards show every domain discovered, including Tavily's soft-filter noise
-  (e.g. appointmenttrader.com). The Brief's provenance row is stricter: it lists
-  only domains that actually produced findings.
+- Agent cards show every domain Tavily returns, including soft-filter noise. The
+  Brief's provenance row is stricter: findings-only.
+- SOCIAL reads captions and articles, not video content.
+
+## Housekeeping
+
+- Rotate both API keys after the event — they were shared in chat. Neither is in
+  the repo (`.env.local` is gitignored; pushed tree audited).
+- `DEMO_SCRIPT.md` and `README.md` no longer hardcode a port; Vite prints it
+  (5173 unless taken).

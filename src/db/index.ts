@@ -15,7 +15,9 @@ import type { Store } from "./types";
 function demoRequested(): boolean {
   try {
     const search = globalThis.location?.search;
-    return typeof search === "string" && new URLSearchParams(search).get("demo") === "1";
+    // `.has` not `=== "1"`: a bare `?demo` must not leave the app pointed at
+    // Supabase while lib/demo seeds fixtures into the local store.
+    return typeof search === "string" && new URLSearchParams(search).has("demo");
   } catch {
     return false;
   }

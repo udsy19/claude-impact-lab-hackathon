@@ -241,6 +241,16 @@ dishes. No generic filler.`;
 
   const analysis = parseJSON<Record<string, unknown>>(await claude(prompt, 4000));
 
+  // Health is free (open data) and independent of the swarm, so it always runs.
+  // A refusal is a valid result — never write another restaurant's violations.
+  let health: unknown = { status: "no_confident_match" };
+  try {
+    const { lookupHealth } = await import("../src/health/index.ts");
+    health = await lookupHealth({ name: row.name, city, lat: null, lng: null });
+  } catch (e) {
+    log(`  health lookup failed for ${row.name}: ${(e as Error).message}`);
+  }
+
   const cost = spend - before;
   if (cost > MAX_COST_PER_RESTAURANT) {
     log(`  ABORT ${label} — $${cost.toFixed(3)} exceeded the ceiling`);
@@ -281,6 +291,8 @@ dishes. No generic filler.`;
         restaurant_id: restaurant.id,
         status: "fresh",
         ...analysis,
+        health,
+        health_checked_at: new Date().toISOString(),
         evidence,
         sources: [...sources],
         evidence_count: evidence.length,

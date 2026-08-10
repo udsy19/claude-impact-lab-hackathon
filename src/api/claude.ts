@@ -1,5 +1,11 @@
 const API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-sonnet-4-6";
+/**
+ * Ranking, tag resolution and name extraction are classification and
+ * extraction, not deep reasoning — Haiku does them at a fraction of the
+ * latency, which is most of the user-visible wait on the decision flow.
+ */
+export const FAST_MODEL = "claude-haiku-4-5";
 
 export class MissingClaudeKeyError extends Error {}
 
@@ -36,12 +42,13 @@ async function once(
   prompt: string,
   maxTokens: number,
   signal?: AbortSignal,
+  model: string = MODEL,
 ): Promise<string> {
   const res = await fetch(API_URL, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({
-      model: MODEL,
+      model,
       max_tokens: maxTokens,
       messages: [{ role: "user", content: prompt }],
     }),
@@ -62,14 +69,15 @@ export async function complete(
   prompt: string,
   maxTokens = 8000,
   signal?: AbortSignal,
+  model: string = MODEL,
 ): Promise<string> {
   try {
-    return await once(prompt, maxTokens, signal);
+    return await once(prompt, maxTokens, signal, model);
   } catch (err) {
     if (err instanceof MissingClaudeKeyError) throw err;
     if (signal?.aborted) throw err;
     await new Promise((r) => setTimeout(r, 800));
-    return await once(prompt, maxTokens, signal);
+    return await once(prompt, maxTokens, signal, model);
   }
 }
 
@@ -147,6 +155,7 @@ export async function completeJSON<T>(
   prompt: string,
   maxTokens = 8000,
   signal?: AbortSignal,
+  model: string = MODEL,
 ): Promise<T> {
-  return parseJSON<T>(await complete(prompt, maxTokens, signal));
+  return parseJSON<T>(await complete(prompt, maxTokens, signal, model));
 }

@@ -11,6 +11,7 @@ import {
   type Place,
 } from "../decision/types";
 import { FALLBACK_PLACES, locate } from "../lib/location";
+import { DEMO_PLACE, isDemo } from "../lib/demo";
 import type { Vibe } from "../db/types";
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -83,6 +84,12 @@ export default function Decide({
 
   useEffect(() => {
     let alive = true;
+    if (isDemo) {
+      // No geolocation prompt on stage, and no network round trip.
+      setAsking(false);
+      setPlace(DEMO_PLACE);
+      return;
+    }
     void (async () => {
       const p = await locate();
       if (!alive) return;

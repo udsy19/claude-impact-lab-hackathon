@@ -3,8 +3,9 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { seedLocalIfNeeded } from './fixtures/seedLocal'
+import { isDemo, seedDemo } from './lib/demo'
 
-void seedLocalIfNeeded();
+void (isDemo ? seedDemo() : seedLocalIfNeeded());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,4 +1,5 @@
-import { completeJSON } from "../api/claude";
+import { completeJSON, FAST_MODEL } from "../api/claude";
+import { demoRank, isDemo } from "../lib/demo";
 import { distanceLabel } from "../lib/geo";
 import type { Candidate, Constraints, Suggestion } from "./types";
 import { HUNGERS } from "./types";
@@ -111,6 +112,8 @@ export async function rank(
   signal?: AbortSignal,
 ): Promise<Suggestion[]> {
   if (cands.length === 0) return [];
+  // Offline demo: answer from captured data instead of reaching the network.
+  if (isDemo) return demoRank(cands);
   const now = new Date().toLocaleString("en-US", {
     weekday: "long",
     hour: "numeric",
@@ -127,6 +130,7 @@ export async function rank(
       }),
       1500,
       signal,
+      FAST_MODEL,
     );
     const valid = (Array.isArray(out) ? out : []).filter((s) =>
       cands.some((c2) => c2.restaurant.id === s.restaurant_id),
@@ -151,6 +155,7 @@ that would match restaurants in a database (e.g. "omakase" -> ["japanese",
 No commentary.`,
       300,
       signal,
+      FAST_MODEL,
     );
     return (out?.tags ?? []).slice(0, 4);
   } catch {

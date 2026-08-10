@@ -11,7 +11,7 @@
 import { db } from "../db";
 import { haversineMiles, slugify } from "../lib/geo";
 import { search } from "../api/tavily";
-import { completeJSON } from "../api/claude";
+import { completeJSON, FAST_MODEL } from "../api/claude";
 import type { Restaurant, Vibe } from "../db/types";
 import type { Candidate, Constraints, Place } from "./types";
 import { radiusFor } from "./types";
@@ -156,6 +156,7 @@ Rules:
 - Maximum 12. If the results name no real venues, return {"names": []}.`,
       600,
       signal,
+      FAST_MODEL,
     );
 
     const banned = new Set(

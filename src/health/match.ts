@@ -136,6 +136,9 @@ const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
  * other punctuation to spaces, and strip a trailing store number ("#2", "no 3").
  */
 function normalizeName(raw: string): string {
+  // Decided on the RAW string: the character class below destroys "#".
+  const hasBranchMarker = /#\s*\d+\s*$/.test(raw);
+
   let s = raw
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -145,8 +148,19 @@ function normalizeName(raw: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-  const trimmed = s.replace(/\s+(?:no|num|number|store|unit|ste|suite)?\s*\d+\s*$/, "").trim();
-  if (trimmed) s = trimmed;
+  /*
+   * Only strip a trailing number when something marks it as a BRANCH number:
+   * "#2", "no. 2", "store 4". An earlier version made that prefix optional,
+   * which stripped EVERY trailing numeral — so "Cafe 1951" and "Cafe 2020"
+   * both normalised to "cafe", scored 1.00, and at a shared address produced a
+   * confident match on the wrong restaurant. For a health-inspection record
+   * that is the worst failure this module can produce, so a number now stays
+   * unless it is explicitly marked as a branch.
+   */
+  const stripped = hasBranchMarker
+    ? s.replace(/\s*\d+\s*$/, "").trim()
+    : s.replace(/\s+(?:no|num|number|store|unit|ste|suite)\s*\d+\s*$/, "").trim();
+  if (stripped) s = stripped;
   return s;
 }
 

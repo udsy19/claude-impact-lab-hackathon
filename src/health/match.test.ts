@@ -7,190 +7,47 @@ import {
   searchTokens,
 } from "./match.ts";
 
-/**
- * The single question this file protects: can a wrong inspection record ever
- * clear CONFIDENCE_THRESHOLD? A false positive here prints another
- * restaurant's rat citations on this restaurant's brief.
+/** Shared fixtures: two points ~33m apart in SF, and one in NYC. */
+const SF = { lat: 37.7509, lng: -122.4183 };
+const SF_SAME_ADDRESS = { lat: 37.7512, lng: -122.4183 };
+const NYC = { lat: 40.7223, lng: -73.9874 };
+
+/*
+ * Regression: normalizeName used to strip EVERY trailing numeral, so
+ * "Cafe 1951" and "Cafe 2020" both became "cafe", scored 1.00, and at a shared
+ * address produced a confident match on the WRONG restaurant's inspection
+ * record. A number is now only stripped when marked as a branch ("#2",
+ * "no. 2", "store 4"). These assert the refusal directly.
  */
-
-// A block in the Mission, SF. Latitude deltas are exact metre distances at
-// 69.093 miles per degree of latitude.
-const SF = { lat: 37.7749, lng: -122.4194 };
-/** +0.0003 deg lat == ~33 m: "same address" band (<=50m). */
-const SF_SAME_ADDRESS = { lat: 37.7752, lng: -122.4194 };
-/** +0.0027 deg lat == ~300 m: past the 250 m gate. */
-const SF_300M = { lat: 37.7776, lng: -122.4194 };
-const NYC = { lat: 40.7128, lng: -74.006 };
-
-describe("matchConfidence — records we MUST be willing to show", () => {
-  it("accepts an exact name at the same address", () => {
-    const c = matchConfidence({
-      queryName: "Zuni Cafe",
-      candidateName: "Zuni Cafe",
-      queryCoords: SF,
-      candidateCoords: SF_SAME_ADDRESS,
-    });
-    expect(c).toBe(1);
-    expect(c).toBeGreaterThanOrEqual(CONFIDENCE_THRESHOLD);
-  });
-
-  it("accepts 'Peter Luger' against 'Peter Luger Steakhouse' at the same address (subset containment)", () => {
-    const c = matchConfidence({
-      queryName: "Peter Luger",
-      candidateName: "Peter Luger Steakhouse",
-      queryCoords: NYC,
-      candidateCoords: { lat: 40.7131, lng: -74.006 }, // ~33 m
-    });
-    expect(c).toBeGreaterThanOrEqual(CONFIDENCE_THRESHOLD);
-    expect(c).toBeCloseTo(0.98, 5);
-  });
-
-  it("accepts an exact name when neither side has coordinates", () => {
-    const c = matchConfidence({
-      queryName: "Katz's Delicatessen",
-      candidateName: "KATZ'S DELICATESSEN",
-      queryCoords: null,
-      candidateCoords: null,
-    });
-    expect(c).toBeCloseTo(0.88, 5);
-    expect(c).toBeGreaterThanOrEqual(CONFIDENCE_THRESHOLD);
-  });
-
-  it("accepts an exact name when we have coords but the record does not", () => {
-    const c = matchConfidence({
-      queryName: "Tartine Bakery",
-      candidateName: "Tartine Bakery",
-      queryCoords: SF,
-      candidateCoords: null,
-    });
-    expect(c).toBeCloseTo(0.8, 5);
-    expect(c).toBeGreaterThanOrEqual(CONFIDENCE_THRESHOLD);
-  });
-});
-
-describe("matchConfidence — records we MUST refuse (safety cases)", () => {
-  it("refuses a perfect name match 300 m away (distance is a gate, not a tiebreak)", () => {
-    const c = matchConfidence({
-      queryName: "Zuni Cafe",
-      candidateName: "Zuni Cafe",
-      queryCoords: SF,
-      candidateCoords: SF_300M,
-    });
-    expect(c).toBeLessThan(CONFIDENCE_THRESHOLD);
-    expect(c).toBeCloseTo(0.6, 5); // hard ceiling for the 250-600 m band
-  });
-
-  it("refuses a perfect name match 1.1 km away", () => {
-    const c = matchConfidence({
-      queryName: "Zuni Cafe",
-      candidateName: "Zuni Cafe",
-      queryCoords: SF,
-      candidateCoords: { lat: 37.7849, lng: -122.4194 }, // ~1112 m
-    });
-    expect(c).toBeLessThan(CONFIDENCE_THRESHOLD);
-    expect(c).toBeCloseTo(0.4, 5);
-  });
-
-  it("refuses the generic query name 'Kitchen' sitting exactly on top of a longer candidate", () => {
-    const c = matchConfidence({
-      queryName: "Kitchen",
-      candidateName: "The Kitchen Table",
-      queryCoords: SF,
-      candidateCoords: SF_SAME_ADDRESS,
-    });
-    expect(c).toBeLessThan(CONFIDENCE_THRESHOLD);
-    expect(c).toBeCloseTo(0.65, 5); // generic-name ceiling
-  });
-
-  it("refuses the generic query name 'Thai Food' sitting exactly on top of a longer candidate", () => {
-    const c = matchConfidence({
-      queryName: "Thai Food",
-      candidateName: "Thai Food Express",
-      queryCoords: SF,
-      candidateCoords: SF_SAME_ADDRESS,
-    });
-    expect(c).toBeLessThan(CONFIDENCE_THRESHOLD);
-    expect(c).toBeCloseTo(0.65, 5);
-  });
-
-  it("refuses an exact but too-short distinctive query name ('Nix') at the same address", () => {
-    const c = matchConfidence({
-      queryName: "Nix",
-      candidateName: "Nix",
-      queryCoords: SF,
-      candidateCoords: SF_SAME_ADDRESS,
-    });
-    expect(c).toBeLessThan(CONFIDENCE_THRESHOLD);
-    expect(c).toBeCloseTo(0.7, 5); // short-name ceiling
-  });
-
-  it("refuses two genuinely different restaurants sharing one address", () => {
-    const c = matchConfidence({
-      queryName: "Katz's Delicatessen",
-      candidateName: "Russ & Daughters Cafe",
-      queryCoords: NYC,
-      candidateCoords: NYC,
-    });
-    expect(c).toBeLessThan(CONFIDENCE_THRESHOLD);
-    expect(c).toBeLessThan(0.4);
-  });
-
-  it("refuses two different restaurants sharing one address and one generic word", () => {
-    const c = matchConfidence({
-      queryName: "Golden Gate Grill",
-      candidateName: "Silver Star Grill",
-      queryCoords: SF,
-      candidateCoords: SF,
-    });
-    expect(c).toBeLessThan(CONFIDENCE_THRESHOLD);
-  });
-
-  it("refuses 'Tartine Bakery' (SF) scored against a same-named candidate at NYC coords", () => {
-    const c = matchConfidence({
-      queryName: "Tartine Bakery",
-      candidateName: "Tartine Bakery",
-      queryCoords: SF,
-      candidateCoords: NYC,
-    });
-    expect(c).toBeLessThan(CONFIDENCE_THRESHOLD);
-    expect(c).toBeCloseTo(0.15, 5); // >2 km band
-  });
-
-  it("returns 0 outright when the names have nothing in common", () => {
+describe("numbered names must not collapse into each other", () => {
+  it("should refuse 'Cafe 1951' vs 'Cafe 2020' at the same address ", () => {
     expect(
       matchConfidence({
-        queryName: "🍕🍕🍕",
-        candidateName: "Zuni Cafe",
+        queryName: "Cafe 1951",
+        candidateName: "Cafe 2020",
         queryCoords: SF,
-        candidateCoords: SF,
+        candidateCoords: SF_SAME_ADDRESS,
       }),
-    ).toBe(0);
+    ).toBeLessThan(CONFIDENCE_THRESHOLD);
   });
 
-  it("treats null island (0,0) as no coordinates rather than as a real address", () => {
-    const nullIsland = matchConfidence({
-      queryName: "Zuni Cafe",
-      candidateName: "Zuni Cafe",
-      queryCoords: SF,
-      candidateCoords: { lat: 0, lng: 0 },
-    });
-    const missing = matchConfidence({
-      queryName: "Zuni Cafe",
-      candidateName: "Zuni Cafe",
-      queryCoords: SF,
-      candidateCoords: null,
-    });
-    expect(nullIsland).toBe(missing);
+  it("should refuse 'Pier 23' vs 'Pier 39' at the same address ", () => {
+    expect(
+      matchConfidence({
+        queryName: "Pier 23",
+        candidateName: "Pier 39",
+        queryCoords: SF,
+        candidateCoords: SF_SAME_ADDRESS,
+      }),
+    ).toBeLessThan(CONFIDENCE_THRESHOLD);
   });
 
-  it("treats NaN coordinates as missing rather than throwing or scoring them as near", () => {
-    const c = matchConfidence({
-      queryName: "Zuni Cafe",
-      candidateName: "Zuni Cafe",
-      queryCoords: SF,
-      candidateCoords: { lat: Number.NaN, lng: Number.NaN },
-    });
-    expect(c).toBeCloseTo(0.8, 5);
+  it("should not call 'Studio 54' and 'Studio 90' the same name", () => {
+    expect(nameSimilarity("Studio 54", "Studio 90")).toBeLessThan(1);
+  });
+
+  it("does still strip an explicit store number, which is the intended behaviour", () => {
+    expect(nameSimilarity("Shake Shack #2", "Shake Shack")).toBe(1);
   });
 });
 

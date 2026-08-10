@@ -1,13 +1,13 @@
 # Handoff
 
-State as of 2026-08-08. The app runs end to end on the localStorage backend;
-every surface in the build prompt exists and has been exercised in a browser.
+State as of 2026-08-09. Running against live Supabase with 63 pre-indexed SF
+restaurants. Every surface in the build prompt exists and has been exercised.
 
 ## Do these first
 
 1. **Supabase is connected.** Project `tablestakes` (ref `blgnwtxzvwzepvdziczx`,
-   us-west-1), migration applied, 114 restaurants seeded, decision logging
-   verified writing. The DB password is **not** in the repo — it was generated
+   us-west-1), migration applied, 130 restaurants and 65 dossiers
+   (56 health-matched), decision logging verified writing. The DB password is **not** in the repo — it was generated
    during setup and lives at `/tmp/ts_dbpass.txt` on the build machine; rotate it
    in the dashboard and store it somewhere durable.
 
@@ -17,41 +17,49 @@ every surface in the build prompt exists and has been exercised in a browser.
    DSource-AI from the dashboard when you need it (that will re-block new
    project creation).
 
-   Two PostgREST details already shaken out: the `price_tier` null `.or()`
-   filter works, and `shareCardBySlug`'s embedded join is still **untested
-   against Postgres** — it's the most likely remaining rough edge.
+   Both PostgREST details are now shaken out against real Postgres: the
+   `price_tier` null `.or()` filter works, and `shareCardBySlug`'s embedded join
+   resolves correctly (dossier and restaurant both come back as objects).
 
-2. **Run the pre-index.** `npx tsx scripts/preindex.ts seed/sf.json --limit 5`
-   first to watch the cost log, then the full 65. It is resumable and aborts any
-   restaurant over $1.50. Without a database it runs dry and persists nothing.
-   Then write `seed/nyc.json` (60 equivalents) and run that.
+2. **Deploy the OG edge function — one command.**
 
-3. **Fix OG images properly.** `renderCardImage()` (html-to-image) and
-   `setOgTags()` exist, but runtime meta tags do not help iMessage, Slack or
-   Twitter — those crawlers do not execute JS. The real fix is a small edge
-   function or prerender for `/r/*` that returns static OG tags plus a generated
-   1200×630 PNG stored in Supabase storage. **The share card is the growth loop,
-   so this is worth more than any new feature.**
+       supabase functions deploy og --no-verify-jwt --project-ref blgnwtxzvwzepvdziczx
+
+   Everything else is done: the public `og` bucket exists, anon upload and public
+   read both verified 200, the function's HTML passes 12 adversarial escaping
+   assertions, and the client uploads the card *before* creating the share row
+   (required — `share_cards` has no anon UPDATE policy). Only the deploy is
+   blocked, and only by this machine: the CLI bundles inside Docker and Docker
+   Desktop is not running, while the Management API route 500s on Supabase's
+   side. `--no-verify-jwt` is mandatory — crawlers send no auth header.
+
+   Also set the site URL so the fallback image resolves:
+   `supabase secrets set SITE_URL=https://<your-deployed-app>`
+
+3. **Run the NYC pre-index.** SF is done (63 restaurants, $5.31, ~$0.08 each).
+   `npx tsx scripts/preindex.ts seed/nyc.json --limit 5` first to watch the cost
+   log, then the full 64. Resumable; aborts any restaurant over $1.50.
 
 ## Known issues
 
-- **Time to first suggestion is ~7s against Supabase, not the <4s target.** Breakdown: candidate
-  discovery from the local cache is fast; the remainder is the single Claude
-  ranking call. Options, cheapest first: stream the hero card as soon as the
-  first suggestion parses out of the ranking response; drop the ranker to
-  `claude-haiku-4-5` (this is a pick-3-from-30 task, not deep reasoning); or
-  render distance-sorted candidates instantly and let the ranked order swap in.
+- **Time to first suggestion is 3.57s** (db 434ms + dossier join 60ms + Haiku
+  rank 3077ms), measured against the populated database. Under the 4s target,
+  but the ranking call is now 86% of it — if you want it faster, stream the hero
+  card as soon as the first suggestion parses rather than awaiting the whole
+  JSON array.
 - **Overpass is slow (5–10s) when it fires.** It only fires in genuinely thin
   areas now, but a pre-indexed city avoids it entirely — another reason to run
   the pre-index.
-- **`?demo=1` is not wired for the new decision flow.** The old dossier fixtures
-  still exist in `src/fixtures/sample_swarm.ts`; a full offline decision session
-  needs a captured candidate set + 3 dossiers seeded into the local store. The
-  local seeder (`src/fixtures/seedLocal.ts`) is most of the way there.
+- **`?demo=1` works offline** with 4 real dossiers captured from the live
+  pre-index. Regenerate them by re-running the export query against a populated
+  database (see the header of `src/fixtures/demoData.ts`).
 - **SF health data is frozen at 2019-11-28** upstream. Consider showing the
   inspection date more prominently in the UI so it doesn't read as current.
-- No tests. The health matcher and `src/lib/stats.ts` are pure and are the two
-  places where a bug would be silent and harmful — start there.
+- **122 tests** (`npm test`) across the health matcher, stats and geo. Writing
+  them immediately found a real false-positive in the matcher (numbered names
+  like "Cafe 1951" vs "Cafe 2020" collapsing to a 1.00 match) — fixed, with the
+  live SF/NYC lookups re-verified afterwards. Nothing covers the swarm, the
+  decision flow or the stores yet.
 
 ## Next features, in the order I'd build them
 

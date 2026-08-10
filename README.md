@@ -60,6 +60,7 @@ own UUID client-side rather than reading the id back. Adding a SELECT policy to
 |---|---|
 | `npm run dev` | dev server |
 | `npm run typecheck` | **use this, not bare `tsc --noEmit`** (see gotchas) |
+| `npm test` | 122 tests (health matcher, stats, geo) |
 | `npx tsx scripts/preindex.ts seed/sf.json --limit 20` | pre-index a city |
 
 ---
@@ -95,8 +96,8 @@ own UUID client-side rather than reading the id back. Adding a SELECT policy to
 
 ### The cost model, which is the architecture
 
-A fresh research run costs roughly **$0.50**. A cached dossier read costs
-**nothing**. So the cache is exhausted before anything else runs: relax price,
+A fresh research run costs roughly **$0.50** interactively, and **$0.08** in
+batch (measured: 63 SF restaurants for $5.31). A cached read costs **nothing**. So the cache is exhausted before anything else runs: relax price,
 then widen the radius, and only then touch Overpass or Tavily. Pre-indexing is
 what makes the product economical — every row written by `preindex.ts` is a user
 who never waits and never costs a swarm.
@@ -164,12 +165,12 @@ real:
 
 ## Known limits
 
-- **OG images are not generated yet.** `renderCardImage` exists and the meta
-  tags are set at runtime, but SPA runtime tags don't help real crawlers
-  (iMessage, Slack) which don't run JS. A tiny SSR or edge function for `/r/*`
-  is the honest fix and is the top item in `HANDOFF.md`.
-- **`preindex.ts` has not been run at scale.** It is wired to a live database
-  now and is dry-run safe, but the bulk run hasn't happened.
+- **The OG edge function is written but not deployed.** The bucket, the upload
+  path and the HTML generation are all verified; the deploy needs Docker, which
+  wasn't running on the build machine. One command, in `HANDOFF.md`. Until then
+  shares fall back to the plain SPA route — link works, unfurl is generic.
+- **NYC is seeded but not indexed.** `seed/nyc.json` has 64 restaurants;
+  `preindex.ts` hasn't been run on it. SF took $5.31 for 63.
 - Health adapters cover SF and NYC only; other cities omit the section entirely
   rather than showing anything.
 - React Native / Expo port is explicitly out of scope; this is an installable
